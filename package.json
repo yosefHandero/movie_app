@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "predeploy": "expo export --platform web",
-    "deploy":    "gh-pages -d dist"
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -57,6 +57,5 @@
     "typescript": "~5.8.3"
   },
   "homepage": "https://yosefHandero.github.io/movie_app",
-
   "private": true
 }
