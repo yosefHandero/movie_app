@@ -1,145 +1,177 @@
-import { Link } from "expo-router";
-import { Text, Image, TouchableOpacity, View, Pressable, Alert } from "react-native";
-import { icons } from "@/constants/icons";
 import { Movie } from "@/interfaces/interfaces";
-import { useState, useEffect, useCallback } from "react";
-import { saveMovie, getCurrentUser, getSavedMovies, deleteSavedMovie } from "@/services/appwrite";
-import { router } from "expo-router";
+import { Link } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Image, Platform, Pressable, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { Badge } from "./ui/Badge";
+import { Skeleton } from "./ui/Skeleton";
 
-const MovieCard = ({
-                       id,
-                       poster_path,
-                       title,
-                       vote_average,
-                       release_date,
-                   }: Movie) => {
-    const [isSaved, setIsSaved] = useState(false);
-    const [loading, setLoading] = useState(false);
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const AnimatedImage = Animated.createAnimatedComponent(Image);
 
-    // Function to check if the movie is already saved
-    const checkSavedStatus = useCallback(async () => {
-        try {
-            const user = await getCurrentUser();
-            if (user) {
-                const savedMovies = await getSavedMovies();
-                const saved = savedMovies.some(movie => movie.movie_id === id);
-                setIsSaved(saved);
-            }
-        } catch (error) {
-            console.error("Error checking saved status:", error);
+interface MovieCardProps extends Movie {
+  size?: "small" | "medium" | "large";
+  showRating?: boolean;
+  className?: string;
+}
+
+export const MovieCard: React.FC<MovieCardProps> = ({
+  id,
+  poster_path,
+  title,
+  vote_average,
+  release_date,
+  size = "small",
+  showRating = true,
+  className = "",
+}) => {
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
+  const scale = useSharedValue(1);
+  const imageOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (!imageLoading) {
+      imageOpacity.value = withTiming(1, { duration: 300 });
+    }
+  }, [imageLoading]);
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.96, { damping: 20, stiffness: 400 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const imageAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: imageOpacity.value,
+  }));
+
+  // Responsive sizing for web and mobile
+  const sizeClasses = {
+    small: Platform.OS === "web" ? "w-[30%] min-w-[140px]" : "w-[30%]",
+    medium: Platform.OS === "web" ? "w-[45%] min-w-[180px]" : "w-[45%]",
+    large: "w-full",
+  };
+
+  const imageHeightClasses = {
+    small: Platform.OS === "web" ? "h-52 min-h-[208px]" : "h-52",
+    medium: Platform.OS === "web" ? "h-64 min-h-[256px]" : "h-64",
+    large: "h-80",
+  };
+
+  const posterUrl = poster_path
+    ? `https://image.tmdb.org/t/p/w500${poster_path}`
+    : "https://placehold.co/600x400/1a1a1a/FFFFFF.png?text=No+Image";
+
+  // Web hover effect
+  const webHoverStyle =
+    Platform.OS === "web"
+      ? {
+          // @ts-ignore - web-only style
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          cursor: "pointer",
         }
-    }, [id]);
+      : {};
 
-    // Load saved status on component mount
-    useEffect(() => {
-        checkSavedStatus();
-    }, [checkSavedStatus]);
-
-    const handleSaveMovie = async () => {
-        if (loading) return;
-        setLoading(true);
-
-        try {
-            // Check if user is logged in
-            const user = await getCurrentUser();
-            if (!user) {
-                Alert.alert(
-                    "Login Required",
-                    "You need to be logged in to save movies.",
-                    [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                            text: "Login",
-                            onPress: () => {
-                                router.push('/(tabs)/profile');
-                            }
-                        }
-                    ]
-                );
-                setLoading(false);
-                return;
+  return (
+    <View className={`${sizeClasses[size]} ${className}`}>
+      <Animated.View style={animatedStyle} className="relative">
+        <Link href={`/movie/${id}`} asChild>
+          <AnimatedPressable
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            className="relative"
+            style={webHoverStyle}
+            // @ts-ignore - web-only props
+            onMouseEnter={
+              Platform.OS === "web"
+                ? () => {
+                    scale.value = withSpring(1.03, {
+                      damping: 15,
+                      stiffness: 300,
+                    });
+                  }
+                : undefined
             }
-
-            // Check current saved status
-            const savedMovies = await getSavedMovies();
-            const existingMovie = savedMovies.find(movie => movie.movie_id === id);
-
-            if (existingMovie) {
-                // Movie is already saved, so unsave it
-                await deleteSavedMovie(existingMovie.$id);
-                setIsSaved(false);
-                Alert.alert("Success", "Movie removed from your collection!");
-            } else {
-                // Movie is not saved, so save it
-                await saveMovie({
-                    id,
-                    title,
-                    poster_path: poster_path ?? "",
-                });
-                setIsSaved(true);
-                Alert.alert("Success", "Movie saved to your collection!");
+            onMouseLeave={
+              Platform.OS === "web"
+                ? () => {
+                    scale.value = withSpring(1, {
+                      damping: 15,
+                      stiffness: 300,
+                    });
+                  }
+                : undefined
             }
-        } catch (error: any) {
-            // Handle specific error cases
-            if (error.message?.includes("already saved")) {
-                setIsSaved(true);
-                Alert.alert("Info", "Movie is already in your collection.");
-            } else {
-                Alert.alert("Error", error.message || "Failed to update save status.");
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+          >
+            {imageLoading && (
+              <View
+                className={`absolute inset-0 ${imageHeightClasses[size]} rounded-xl overflow-hidden`}
+              >
+                <Skeleton width="100%" height="100%" borderRadius={12} />
+              </View>
+            )}
+            <AnimatedImage
+              source={{ uri: posterUrl }}
+              className={`w-full ${imageHeightClasses[size]} rounded-xl`}
+              resizeMode="cover"
+              style={imageAnimatedStyle}
+              onLoad={() => setImageLoading(false)}
+              onError={() => {
+                setImageError(true);
+                setImageLoading(false);
+              }}
+            />
+            {imageError && (
+              <View
+                className={`absolute inset-0 ${imageHeightClasses[size]} rounded-xl bg-bg-tertiary items-center justify-center`}
+              >
+                <Text className="text-text-tertiary text-xs">No Image</Text>
+              </View>
+            )}
+          </AnimatedPressable>
+        </Link>
 
-    return (
-        <View className="w-[30%]">
-            <View className="relative">
-                {/* Touchable link for full card (excluding save icon) */}
-                <Link href={`/movie/${id}`} asChild>
-                    <TouchableOpacity>
-                        <Image
-                            source={{
-                                uri: poster_path
-                                    ? `https://image.tmdb.org/t/p/w500${poster_path}`
-                                    : "https://placehold.co/600x400/1a1a1a/FFFFFF.png",
-                            }}
-                            className="w-full h-52 rounded-lg"
-                            resizeMode="cover"
-                        />
-                        <Text className="text-sm font-bold text-white mt-2" numberOfLines={1}>
-                            {title}
-                        </Text>
-                    </TouchableOpacity>
-                </Link>
+        {/* Rating badge */}
+        {showRating && vote_average > 0 && (
+          <View className="absolute bottom-2 left-2">
+            <Badge
+              label={`${Math.round(vote_average / 2)}★`}
+              variant="accent"
+              size="sm"
+            />
+          </View>
+        )}
+      </Animated.View>
 
-                {/* Info row: rating/date on left, save icon on right */}
-                <View className="flex-row items-center justify-between mt-1">
-                    <View className="flex-row items-center gap-x-1">
-                        <Image source={icons.star} className="size-4" />
-                        <Text className="text-xs text-white font-bold uppercase">
-                            {Math.round(vote_average / 2)}
-                        </Text>
-                        <Text className="text-xs text-light-300 font-medium">
-                            {release_date?.split("-")[0]}
-                        </Text>
-                    </View>
-
-                    <Pressable
-                        onPress={handleSaveMovie}
-                        className="p-1"
-                        disabled={loading}
-                    >
-                        <Image
-                            source={isSaved ? icons.saved : icons.save}
-                            style={{ width: 16, height: 16 }}
-                            tintColor={isSaved ? "#4B64E6" : undefined}
-                        />
-                    </Pressable>
-                </View>
-            </View>
-        </View>
-    );
+      {/* Title and year */}
+      <View className="mt-2">
+        <Text
+          className="text-text-primary text-sm font-semibold"
+          numberOfLines={2}
+        >
+          {title}
+        </Text>
+        {release_date && (
+          <Text className="text-text-tertiary text-xs mt-1">
+            {release_date.split("-")[0]}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
 };
 
 export default MovieCard;
