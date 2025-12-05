@@ -1,132 +1,629 @@
-// app/(tabs)/search.tsx
-
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, ActivityIndicator, FlatList, Image } from "react-native";
-
-import { images } from "@/constants/images";
-import { icons } from "@/constants/icons";
-
-import { fetchMovies } from "@/services/api";
-import { updateSearchCount } from "@/services/appwrite";
-
+import MovieCard from "@/components/MovieCard";
 import SearchBar from "@/components/SearchBar";
-import MovieDisplayCard from "@/components/MovieCard";
-import { Movie } from "@/interfaces/interfaces";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { icons } from "@/constants/icons";
+import { Genre } from "@/interfaces/interfaces";
+import {
+  discoverMovies,
+  fetchAListMovies,
+  fetchGenres,
+  fetchMovies,
+  fetchMoviesByGenre,
+  fetchNowPlayingMovies,
+  fetchPopularMovies,
+  fetchTopRatedMovies,
+  fetchUpcomingMovies,
+} from "@/services/api";
+import { updateSearchCount } from "@/services/supabase";
 import useFetch from "@/services/useFetch";
+import { Image } from "expo-image";
+import { useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Dimensions,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const isTablet = SCREEN_WIDTH >= 768;
+const isDesktop = SCREEN_WIDTH >= 1024;
 
 const Search = () => {
-    const [searchQuery, setSearchQuery] = useState<string>("");
-    const countedQueries = useRef<Set<string>>(new Set());
+  const params = useLocalSearchParams();
+  const filterParam = params.filter as string | undefined;
 
-    // Memoize fetch callback so it only changes when searchQuery changes
-    const fetchMoviesCallback = useCallback(
-        () => fetchMovies({ query: searchQuery }),
-        [searchQuery]
-    );
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(
+    filterParam || null
+  );
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedGenreObj, setSelectedGenreObj] = useState<Genre | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const countedQueries = useRef<Set<string>>(new Set());
 
+  // Fetch genres for filter
+  const fetchGenresCallback = useCallback(() => fetchGenres(), []);
+  const { data: genres = [] } = useFetch(fetchGenresCallback);
 
-    const {
-        data: movies = [],
-        loading,
-        error,
-        refetch: loadMovies,
-    } = useFetch(fetchMoviesCallback);
+  // Determine which API to call based on filter
+  const fetchMoviesCallback = useCallback(() => {
+    if (selectedFilter === "top-rated") {
+      return fetchTopRatedMovies(1);
+    } else if (selectedFilter === "now-playing") {
+      return fetchNowPlayingMovies(1);
+    } else if (selectedFilter === "upcoming") {
+      return fetchUpcomingMovies(1);
+    } else if (selectedFilter === "popular") {
+      return fetchPopularMovies(1);
+    } else if (selectedFilter === "a-list") {
+      return fetchAListMovies(1);
+    } else if (selectedGenre || selectedYear) {
+      return discoverMovies({
+        genreIds: selectedGenre ? [selectedGenre] : undefined,
+        year: selectedYear || undefined,
+        sortBy: "popularity.desc",
+      });
+    } else if (searchQuery.trim()) {
+      return fetchMovies({ query: searchQuery });
+    } else {
+      return Promise.resolve([]);
+    }
+  }, [searchQuery, selectedFilter, selectedGenre, selectedYear]);
 
-    const handleSearch = (text: string) => {
-        setSearchQuery(text);
+  // Fetch movies when genre is selected from categories
+  const fetchGenreMoviesCallback = useCallback(() => {
+    if (!selectedGenreObj) return Promise.resolve([]);
+    return fetchMoviesByGenre(selectedGenreObj.id, 1);
+  }, [selectedGenreObj]);
+
+  const {
+    data: genreMovies = [],
+    loading: genreMoviesLoading,
+    refetch: refetchGenreMovies,
+  } = useFetch(fetchGenreMoviesCallback);
+
+  const {
+    data: movies = [],
+    loading,
+    error,
+    refetch: loadMovies,
+  } = useFetch(fetchMoviesCallback);
+
+  useEffect(() => {
+    if (filterParam) {
+      setSelectedFilter(filterParam);
+      setSearchQuery("");
+    }
+  }, [filterParam]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        searchQuery.trim() ||
+        selectedFilter ||
+        selectedGenre ||
+        selectedYear
+      ) {
+        loadMovies();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedFilter, selectedGenre, selectedYear, loadMovies]);
+
+  useEffect(() => {
+    if (
+      searchQuery.trim() &&
+      movies.length > 0 &&
+      !countedQueries.current.has(searchQuery)
+    ) {
+      countedQueries.current.add(searchQuery);
+      updateSearchCount(searchQuery, movies[0]).catch((err) => {
+        if (!/Rate limit/.test(err.message)) {
+          console.error("Failed to update search count:", err);
+        }
+      });
+    }
+  }, [searchQuery, movies]);
+
+  const getFilterTitle = () => {
+    if (selectedFilter === "top-rated") return "Top Rated Movies";
+    if (selectedFilter === "now-playing") return "Now Playing";
+    if (selectedFilter === "upcoming") return "Coming Soon";
+    if (selectedFilter === "popular") return "Popular Movies";
+    if (selectedFilter === "a-list") return "A-List Watchlist";
+    if (selectedGenre) {
+      const genre = genres.find((g) => g.id === selectedGenre);
+      return genre ? `${genre.name} Movies` : "Movies";
+    }
+    if (selectedYear) return `Movies from ${selectedYear}`;
+    if (searchQuery.trim()) return "Search Results";
+    return "Browse Movies";
+  };
+
+  const clearFilters = () => {
+    setSelectedFilter(null);
+    setSelectedGenre(null);
+    setSelectedGenreObj(null);
+    setSelectedYear(null);
+    setSearchQuery("");
+  };
+
+  const hasActiveFilters =
+    selectedFilter || selectedGenre || selectedYear || selectedGenreObj;
+
+  const handleGenreSelect = (genre: Genre) => {
+    if (selectedGenreObj?.id === genre.id) {
+      setSelectedGenreObj(null);
+      setSelectedGenre(null);
+    } else {
+      setSelectedGenreObj(genre);
+      setSelectedGenre(genre.id);
+      setSelectedFilter(null);
+      setSearchQuery("");
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadMovies(), refetchGenreMovies()]);
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadMovies, refetchGenreMovies]);
+
+  // Genre Button Component
+  const GenreButton = ({ genre }: { genre: Genre }) => {
+    const scale = useSharedValue(1);
+    const isSelected = selectedGenreObj?.id === genre.id;
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }));
+
+    const handlePressIn = () => {
+      scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
     };
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (searchQuery.trim()) {
-                loadMovies();
-            }
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [searchQuery, loadMovies]);
-
-    // Only update search count once per unique query
-    useEffect(() => {
-        if (
-            searchQuery.trim() &&
-            movies.length > 0 &&
-            !countedQueries.current.has(searchQuery)
-        ) {
-            countedQueries.current.add(searchQuery);
-            updateSearchCount(searchQuery, movies[0]).catch((err) => {
-                if (!/Rate limit/.test(err.message)) {
-                    console.error("Failed to update search count:", err);
-                }
-            });
-        }
-    }, [searchQuery, movies]);
-
-    // Only render movies when there's a query
-    const dataToRender = searchQuery.trim() ? movies : [];
+    const handlePressOut = () => {
+      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    };
 
     return (
-        <View className="flex-1 bg-primary">
-            <Image
-                source={images.bg}
-                className="flex-1 absolute w-full z-0"
-                resizeMode="cover"
-            />
-
-            <FlatList
-                className="px-5"
-                data={dataToRender as Movie[]}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => <MovieDisplayCard {...item} />}
-                numColumns={3}
-                columnWrapperStyle={{
-                    justifyContent: "flex-start",
-                    gap: 16,
-                    marginVertical: 16,
-                }}
-                contentContainerStyle={{ paddingBottom: 100 }}
-                ListHeaderComponent={
-                    <>
-                        <View className="w-full flex-row justify-center mt-20 items-center">
-                            <Image source={icons.logo} className="w-12 h-10" />
-                        </View>
-                        <View className="my-5">
-                            <SearchBar
-                                placeholder="Search for a movie"
-                                value={searchQuery}
-                                onChangeText={handleSearch}
-                            />
-                        </View>
-                        {loading && (
-                            <ActivityIndicator size="large" color="#0000ff" className="my-3" />
-                        )}
-                        {error && (
-                            <Text className="text-red-500 px-5 my-3">
-                                {error.includes("Failed to fetch")
-                                    ? "Network error: Unable to reach server."
-                                    : `Error: ${error}`}
-                            </Text>
-                        )}
-                        {searchQuery.trim() && movies.length > 0 && !loading && !error && (
-                            <Text className="text-xl text-white font-bold">
-                                Search Results for <Text className="text-accent">{searchQuery}</Text>
-                            </Text>
-                        )}
-                    </>
-                }
-                ListEmptyComponent={
-                    !loading && !error ? (
-                        <View className="mt-10 px-5">
-                            <Text className="text-center text-gray-500">
-                                {searchQuery.trim()
-                                    ? "No movies found"
-                                    : "Start typing to search for movies"}
-                            </Text>
-                        </View>
-                    ) : null
-                }
-            />
-        </View>
+      <AnimatedTouchable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => handleGenreSelect(genre)}
+        style={animatedStyle}
+        className={`px-5 py-2.5 rounded-full mr-3 mb-3 ${
+          isSelected
+            ? "bg-accent-primary"
+            : "bg-bg-elevated border border-border-primary"
+        }`}
+      >
+        <Text
+          className={`text-sm font-semibold ${
+            isSelected ? "text-white" : "text-text-primary"
+          }`}
+        >
+          {genre.name}
+        </Text>
+      </AnimatedTouchable>
     );
+  };
+
+  const dataToRender = movies;
+  const numColumns = isDesktop ? 4 : isTablet ? 3 : 2;
+
+  // Generate years (last 30 years)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
+  return (
+    <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+      <View className="flex-1">
+        {/* Header */}
+        <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
+          <Image
+            source={icons.logo}
+            className="w-14 h-12"
+            contentFit="contain"
+          />
+        </View>
+
+        {/* Search Bar */}
+        <View className="px-6 mb-4">
+          <SearchBar
+            placeholder="Search for a movie..."
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              if (text.trim()) {
+                setSelectedFilter(null);
+                setSelectedGenre(null);
+                setSelectedGenreObj(null);
+                setSelectedYear(null);
+              }
+            }}
+            autoFocus={!filterParam}
+          />
+        </View>
+
+        {/* Categories/Genres Section */}
+        <View className="mb-4">
+          <View className="px-6 mb-3">
+            <Text className="text-text-primary text-xl font-bold">
+              Browse by Category
+            </Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 24 }}
+          >
+            {genres.length > 0 ? (
+              genres.map((genre) => (
+                <GenreButton key={genre.id} genre={genre} />
+              ))
+            ) : (
+              <View className="flex-row gap-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton
+                    key={i}
+                    width={100}
+                    height={36}
+                    borderRadius={18}
+                    className="mr-3"
+                  />
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Filter Chips */}
+        <View className="px-6 mb-4">
+          <View className="flex-row items-center gap-3 flex-wrap">
+            <TouchableOpacity
+              onPress={() => setShowFilters(true)}
+              className="px-4 py-2 rounded-full bg-bg-elevated border border-border-primary"
+            >
+              <Text className="text-text-primary text-sm font-semibold">
+                Filters
+              </Text>
+            </TouchableOpacity>
+
+            {hasActiveFilters && (
+              <TouchableOpacity
+                onPress={clearFilters}
+                className="px-4 py-2 rounded-full bg-accent-primary"
+              >
+                <Text className="text-white text-sm font-semibold">
+                  Clear All
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {selectedFilter && (
+              <View className="px-4 py-2 rounded-full bg-accent-primary/20 border border-accent-primary/30">
+                <Text className="text-accent-primary text-sm font-semibold">
+                  {getFilterTitle()}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Content */}
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#8B5CF6"
+              colors={["#8B5CF6"]}
+            />
+          }
+        >
+          {/* Show genre movies if genre is selected */}
+          {selectedGenreObj && !searchQuery.trim() && !selectedFilter && (
+            <View className="px-6 mb-6">
+              <View className="flex-row items-center justify-between mb-4">
+                <View>
+                  <Text className="text-text-primary text-2xl font-bold mb-1">
+                    {selectedGenreObj.name} Movies
+                  </Text>
+                  <Text className="text-text-secondary text-sm">
+                    {genreMovies.length}{" "}
+                    {genreMovies.length === 1 ? "movie" : "movies"} found
+                  </Text>
+                </View>
+              </View>
+
+              {genreMoviesLoading ? (
+                <View className="flex-row flex-wrap gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Skeleton
+                      key={i}
+                      width={isDesktop ? "22%" : isTablet ? "30%" : "45%"}
+                      height={280}
+                      borderRadius={12}
+                    />
+                  ))}
+                </View>
+              ) : genreMovies.length === 0 ? (
+                <EmptyState
+                  title="No movies found"
+                  message={`We couldn't find any ${selectedGenreObj.name.toLowerCase()} movies`}
+                />
+              ) : (
+                <View className="flex-row flex-wrap gap-4">
+                  {genreMovies.map((item) => (
+                    <View
+                      key={item.id}
+                      style={{
+                        width: isDesktop ? "22%" : isTablet ? "30%" : "45%",
+                      }}
+                    >
+                      <MovieCard
+                        {...item}
+                        size={isDesktop ? "medium" : "small"}
+                        showRating={true}
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Show search/filter results */}
+          {!selectedGenreObj && (
+            <>
+              {loading && (searchQuery.trim() || hasActiveFilters) ? (
+                <View className="px-6">
+                  <View className="flex-row flex-wrap gap-4">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <Skeleton
+                        key={i}
+                        width={isDesktop ? "22%" : isTablet ? "30%" : "45%"}
+                        height={280}
+                        borderRadius={12}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : error ? (
+                <View className="px-6 py-12">
+                  <EmptyState
+                    title="Search Error"
+                    message={
+                      error.includes("Failed to fetch")
+                        ? "Network error: Unable to reach server."
+                        : `Error: ${error}`
+                    }
+                  />
+                </View>
+              ) : searchQuery.trim() && movies.length === 0 && !loading ? (
+                <EmptyState
+                  title="No movies found"
+                  message={`We couldn't find any movies matching "${searchQuery}"`}
+                />
+              ) : !searchQuery.trim() && !hasActiveFilters ? (
+                <View className="px-6 py-12">
+                  <EmptyState
+                    title="Start exploring"
+                    message="Search for movies, select a category, or use filters to discover amazing films"
+                  />
+                </View>
+              ) : movies.length > 0 ? (
+                <View className="px-6 pb-32">
+                  <View className="mb-6">
+                    <Text className="text-text-primary text-2xl md:text-3xl font-bold mb-2">
+                      {getFilterTitle()}
+                    </Text>
+                    <Text className="text-text-secondary text-base mb-4">
+                      Found{" "}
+                      <Text className="text-accent-primary font-bold">
+                        {movies.length}
+                      </Text>{" "}
+                      {movies.length === 1 ? "movie" : "movies"}
+                      {searchQuery.trim() && (
+                        <>
+                          {" "}
+                          for{" "}
+                          <Text className="text-accent-primary font-semibold">
+                            "{searchQuery}"
+                          </Text>
+                        </>
+                      )}
+                    </Text>
+                  </View>
+                  <View className="flex-row flex-wrap gap-4">
+                    {movies.map((item) => (
+                      <View
+                        key={item.id}
+                        style={{
+                          width: isDesktop ? "22%" : isTablet ? "30%" : "45%",
+                        }}
+                      >
+                        <MovieCard
+                          {...item}
+                          size={isDesktop ? "medium" : "small"}
+                          showRating={true}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </>
+          )}
+        </ScrollView>
+
+        {/* Filters Modal */}
+        <Modal
+          visible={showFilters}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowFilters(false)}
+        >
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-bg-primary rounded-t-3xl p-6 max-h-[80%]">
+              <View className="flex-row items-center justify-between mb-6">
+                <Text className="text-text-primary text-2xl font-bold">
+                  Filters
+                </Text>
+                <TouchableOpacity onPress={() => setShowFilters(false)}>
+                  <Text className="text-accent-primary text-base font-semibold">
+                    Done
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Quick Filters */}
+                <View className="mb-6">
+                  <Text className="text-text-primary text-lg font-bold mb-4">
+                    Quick Filters
+                  </Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    {[
+                      { key: "popular", label: "Popular" },
+                      { key: "top-rated", label: "Top Rated" },
+                      { key: "now-playing", label: "Now Playing" },
+                      { key: "upcoming", label: "Coming Soon" },
+                      { key: "a-list", label: "A-List" },
+                    ].map((filter) => (
+                      <TouchableOpacity
+                        key={filter.key}
+                        onPress={() => {
+                          setSelectedFilter(filter.key);
+                          setSearchQuery("");
+                          setSelectedGenre(null);
+                          setSelectedYear(null);
+                        }}
+                        className={`px-4 py-2 rounded-full ${
+                          selectedFilter === filter.key
+                            ? "bg-accent-primary"
+                            : "bg-bg-elevated border border-border-primary"
+                        }`}
+                      >
+                        <Text
+                          className={`text-sm font-semibold ${
+                            selectedFilter === filter.key
+                              ? "text-white"
+                              : "text-text-primary"
+                          }`}
+                        >
+                          {filter.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Genre Filter */}
+                <View className="mb-6">
+                  <Text className="text-text-primary text-lg font-bold mb-4">
+                    Genres
+                  </Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    {genres.map((genre) => (
+                      <TouchableOpacity
+                        key={genre.id}
+                        onPress={() => {
+                          const newGenre =
+                            selectedGenre === genre.id ? null : genre.id;
+                          setSelectedGenre(newGenre);
+                          if (newGenre) {
+                            setSelectedGenreObj(genre);
+                          } else {
+                            setSelectedGenreObj(null);
+                          }
+                          setSelectedFilter(null);
+                          setSearchQuery("");
+                        }}
+                        className={`px-4 py-2 rounded-full ${
+                          selectedGenre === genre.id
+                            ? "bg-accent-primary"
+                            : "bg-bg-elevated border border-border-primary"
+                        }`}
+                      >
+                        <Text
+                          className={`text-sm font-semibold ${
+                            selectedGenre === genre.id
+                              ? "text-white"
+                              : "text-text-primary"
+                          }`}
+                        >
+                          {genre.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Year Filter */}
+                <View className="mb-6">
+                  <Text className="text-text-primary text-lg font-bold mb-4">
+                    Year
+                  </Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    {years.slice(0, 20).map((year) => (
+                      <TouchableOpacity
+                        key={year}
+                        onPress={() => {
+                          setSelectedYear(selectedYear === year ? null : year);
+                          setSelectedFilter(null);
+                          setSearchQuery("");
+                        }}
+                        className={`px-4 py-2 rounded-full ${
+                          selectedYear === year
+                            ? "bg-accent-primary"
+                            : "bg-bg-elevated border border-border-primary"
+                        }`}
+                      >
+                        <Text
+                          className={`text-sm font-semibold ${
+                            selectedYear === year
+                              ? "text-white"
+                              : "text-text-primary"
+                          }`}
+                        >
+                          {year}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
+  );
 };
 
 export default Search;
