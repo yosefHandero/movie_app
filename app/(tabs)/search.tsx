@@ -120,7 +120,11 @@ const Search = () => {
         selectedGenre ||
         selectedYear
       ) {
-        loadMovies();
+        loadMovies().catch((err) => {
+          const errorMessage =
+            err instanceof Error ? err.message : "Failed to load movies";
+          console.error("Error loading movies:", errorMessage);
+        });
       }
     }, 500);
     return () => clearTimeout(timer);
@@ -134,8 +138,9 @@ const Search = () => {
     ) {
       countedQueries.current.add(searchQuery);
       updateSearchCount(searchQuery, movies[0]).catch((err) => {
-        if (!/Rate limit/.test(err.message)) {
-          console.error("Failed to update search count:", err);
+        const errorMessage = err instanceof Error ? err.message : "";
+        if (!/Rate limit/.test(errorMessage)) {
+          console.error("Failed to update search count:", errorMessage);
         }
       });
     }
@@ -238,7 +243,7 @@ const Search = () => {
   const years = Array.from({ length: 30 }, (_, i) => currentYear - i);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+    <SafeAreaView className="flex-1" edges={["top"]}>
       <View className="flex-1">
         {/* Header */}
         <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
@@ -249,22 +254,24 @@ const Search = () => {
           />
         </View>
 
-        {/* Search Bar */}
-        <View className="px-6 mb-4">
-          <SearchBar
-            placeholder="Search for a movie..."
-            value={searchQuery}
-            onChangeText={(text) => {
-              setSearchQuery(text);
-              if (text.trim()) {
-                setSelectedFilter(null);
-                setSelectedGenre(null);
-                setSelectedGenreObj(null);
-                setSelectedYear(null);
-              }
-            }}
-            autoFocus={!filterParam}
-          />
+        {/* Search Bar - Centered and Shorter */}
+        <View className="px-6 mb-4 items-center">
+          <View className="w-full max-w-sm">
+            <SearchBar
+              placeholder="Search for a movie..."
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                if (text.trim()) {
+                  setSelectedFilter(null);
+                  setSelectedGenre(null);
+                  setSelectedGenreObj(null);
+                  setSelectedYear(null);
+                }
+              }}
+              autoFocus={!filterParam}
+            />
+          </View>
         </View>
 
         {/* Categories/Genres Section */}
@@ -488,7 +495,7 @@ const Search = () => {
           transparent={true}
           onRequestClose={() => setShowFilters(false)}
         >
-          <View className="flex-1 bg-black/50 justify-end">
+          <View className="flex-1 bg-black/30 justify-end">
             <View className="bg-bg-primary rounded-t-3xl p-6 max-h-[80%]">
               <View className="flex-row items-center justify-between mb-6">
                 <Text className="text-text-primary text-2xl font-bold">

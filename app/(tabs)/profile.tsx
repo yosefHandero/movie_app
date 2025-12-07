@@ -1,3 +1,4 @@
+import SearchBar from "@/components/SearchBar";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { icons } from "@/constants/icons";
@@ -82,13 +83,23 @@ const Profile = () => {
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      // Could show error toast here
+      console.error("Invalid email format");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       await sendMagicLink(email);
       setShowOtpInput(true);
-    } catch (error: any) {
-      console.error("Error sending magic link:", error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to send magic link";
+      console.error("Error sending magic link:", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -110,8 +121,10 @@ const Profile = () => {
         setOtp("");
         setShowOtpInput(false);
       }
-    } catch (error: any) {
-      console.error("Error logging in:", error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to log in";
+      console.error("Error logging in:", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -124,8 +137,10 @@ const Profile = () => {
       setEmail("");
       setOtp("");
       setShowOtpInput(false);
-    } catch (err: any) {
-      console.error("Error logging out:", err);
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to log out";
+      console.error("Error logging out:", errorMessage);
     }
   };
 
@@ -141,7 +156,7 @@ const Profile = () => {
   // If already logged in, show profile
   if (userEmail) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+      <SafeAreaView className="flex-1 " edges={["top"]}>
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
@@ -157,12 +172,26 @@ const Profile = () => {
         >
           <View className="px-6 pt-8 pb-8">
             {/* Header */}
-            <View className="items-center mb-8">
+            <View className="items-center mb-6">
               <Image
                 source={icons.logo}
-                className="w-16 h-14 mb-6"
+                className="w-16 h-14 mb-4"
                 contentFit="contain"
               />
+            </View>
+
+            {/* Search Bar - Centered and Shorter */}
+            <View className="px-6 mb-6 items-center">
+              <View className="w-full max-w-sm">
+                <SearchBar
+                  placeholder="Search for a movie..."
+                  value=""
+                  onChangeText={() => {
+                    router.push("/(tabs)/search");
+                  }}
+                  onPress={() => router.push("/(tabs)/search")}
+                />
+              </View>
             </View>
 
             {/* Profile Header Card */}
@@ -302,7 +331,7 @@ const Profile = () => {
   // Show OTP input if magic link was sent
   if (showOtpInput) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+      <SafeAreaView className="flex-1 " edges={["top"]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
@@ -380,7 +409,7 @@ const Profile = () => {
 
   // Show email input
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+    <SafeAreaView className="flex-1 " edges={["top"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"

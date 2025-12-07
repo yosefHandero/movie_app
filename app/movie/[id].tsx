@@ -200,6 +200,9 @@ const MovieDetails = () => {
       if (result.error) {
         if (result.error.includes("logged in")) {
           router.push("/(tabs)/profile");
+        } else {
+          // Could show error toast here
+          console.error("Save error:", result.error);
         }
         return;
       }
@@ -212,8 +215,10 @@ const MovieDetails = () => {
           Haptics.NotificationFeedbackType.Success
         );
       }
-    } catch (error: any) {
-      console.error("Error toggling save:", error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save movie";
+      console.error("Error toggling save:", errorMessage);
     } finally {
       setSaving(false);
     }
@@ -228,7 +233,7 @@ const MovieDetails = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+      <SafeAreaView className="flex-1 " edges={["top"]}>
         <View className="px-6 pt-6">
           <Skeleton
             width="100%"
@@ -245,7 +250,7 @@ const MovieDetails = () => {
 
   if (error || !movie) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+      <SafeAreaView className="flex-1 " edges={["top"]}>
         <View className="px-6">
           <TouchableOpacity
             onPress={router.back}
@@ -278,11 +283,11 @@ const MovieDetails = () => {
     : "https://placehold.co/500x750/1a1a1a/FFFFFF.png";
 
   return (
-    <View className="flex-1 bg-bg-primary">
+    <View className="flex-1">
       {/* Animated Header */}
       <Animated.View
         style={headerAnimatedStyle}
-        className="absolute top-0 left-0 right-0 z-50 bg-bg-primary/95 backdrop-blur-lg"
+        className="absolute top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-lg"
       >
         <SafeAreaView edges={["top"]}>
           <View className="flex-row items-center justify-between px-6 py-4">
@@ -331,8 +336,8 @@ const MovieDetails = () => {
           />
 
           {/* Enhanced Gradient Overlay */}
-          <View className="absolute inset-0 bg-black/20" />
-          <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/95" />
+          <View className="absolute inset-0 bg-black/10" />
+          <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/65" />
 
           {/* Content Overlay */}
           <SafeAreaView

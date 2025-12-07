@@ -16,7 +16,7 @@ function TabIcon({
   title,
 }: {
   focused: boolean;
-  icon: any;
+  icon: number | { uri: string };
   title: string;
 }) {
   const scale = useSharedValue(1);
@@ -51,7 +51,10 @@ function TabIcon({
 
   return (
     <AnimatedView className="items-center justify-center" style={animatedStyle}>
-      <Image source={icon} className="w-5 h-5" tintColor="#A1A1AA" />
+      <Image source={icon} className="w-5 h-5" tintColor="#E4E4E7" />
+      <Text className="text-xs font-medium mt-1" style={{ color: "#E4E4E7" }}>
+        {title}
+      </Text>
     </AnimatedView>
   );
 }
@@ -68,20 +71,29 @@ export default function TabsLayout() {
           alignItems: "center",
         },
         tabBarStyle: {
-          backgroundColor: "#89898D", // 50% lighter background
+          backgroundColor:
+            Platform.OS === "web"
+              ? "rgba(165, 165, 169, 0.7)"
+              : "rgba(165, 165, 169, 0.85)", // Semi-transparent for glass effect
           borderRadius: 24,
           marginHorizontal: 20,
           marginBottom: Platform.OS === "web" ? 20 : 24,
-          height: 68,
+          height: 76, // Increased height to accommodate text
           position: "absolute",
           overflow: "hidden",
           borderWidth: 1,
-          borderColor: "rgba(139, 92, 246, 0.2)",
+          borderColor: "rgba(255, 255, 255, 0.3)", // Light border for glass effect
           shadowColor: "#8B5CF6",
           shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.2,
-          shadowRadius: 16,
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
           elevation: 12,
+          // Web-specific backdrop blur
+          ...(Platform.OS === "web" && {
+            // @ts-ignore - web-only CSS
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          }),
         },
       }}
     >
@@ -108,13 +120,6 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
-        name="categories"
-        options={{
-          href: null, // Hide categories tab - merged into search
-        }}
-      />
-
-      <Tabs.Screen
         name="saved"
         options={{
           title: "Saved",
@@ -133,13 +138,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => (
             <TabIcon focused={focused} icon={icons.person} title="Profile" />
           ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="register"
-        options={{
-          href: null, // Hide this tab
         }}
       />
     </Tabs>

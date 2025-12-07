@@ -40,14 +40,14 @@ function useFetch<T>(fetchFunction: () => Promise<T | undefined>) {
             if (isMountedRef.current) {
                 setData(result);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Ignore abort errors
-            if (err.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+            if (err instanceof Error && (err.name === 'AbortError' || abortControllerRef.current?.signal.aborted)) {
                 return;
             }
             
             if (isMountedRef.current) {
-                const errorMessage = err.message || "Something went wrong";
+                const errorMessage = err instanceof Error ? err.message : "Something went wrong";
                 setError(errorMessage);
                 // Only log non-network errors to avoid console spam
                 if (!errorMessage.includes('fetch') && !errorMessage.includes('network')) {

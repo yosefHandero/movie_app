@@ -1,8 +1,10 @@
-import { Stack } from 'expo-router';
-import './global.css';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
+import { GradientBackground } from "@/components/GradientBackground";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { View } from "react-native";
+import "./global.css";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -19,29 +21,32 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" translucent={false} backgroundColor="#0A0A0F" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#0A0A0F' },
-          animation: 'fade',
-        }}
-      >
-        <Stack.Screen
-          name="(tabs)"
-          options={{
+      <StatusBar style="light" translucent={false} backgroundColor="#3C1B58" />
+      <View style={{ flex: 1 }}>
+        <GradientBackground />
+        <Stack
+          screenOptions={{
             headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+            animation: "fade",
           }}
-        />
-        <Stack.Screen
-          name="movie/[id]"
-          options={{
-            headerShown: false,
-            presentation: 'card',
-            animation: 'fade_from_bottom',
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="movie/[id]"
+            options={{
+              headerShown: false,
+              presentation: "card",
+              animation: "fade_from_bottom",
+            }}
+          />
+        </Stack>
+      </View>
     </>
   );
 }

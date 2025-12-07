@@ -1,3 +1,4 @@
+import { GradientBackground } from "@/components/GradientBackground";
 import HeroBanner from "@/components/HeroBanner";
 import MovieCard from "@/components/MovieCard";
 import MovieRow from "@/components/MovieRow";
@@ -6,8 +7,10 @@ import TrendingCard from "@/components/TrendingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { icons } from "@/constants/icons";
+import { Genre } from "@/interfaces/interfaces";
 import {
   fetchAListMovies,
+  fetchGenres,
   fetchMovies,
   fetchNowPlayingMovies,
   fetchPopularMovies,
@@ -41,6 +44,7 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -49,6 +53,7 @@ const isTablet = SCREEN_WIDTH >= 768;
 const isDesktop = SCREEN_WIDTH >= 1024;
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const Index = () => {
   const router = useRouter();
@@ -65,6 +70,7 @@ const Index = () => {
   const upcomingCallback = useCallback(() => fetchUpcomingMovies(1), []);
   const popularCallback = useCallback(() => fetchPopularMovies(1), []);
   const aListCallback = useCallback(() => fetchAListMovies(1), []);
+  const fetchGenresCallback = useCallback(() => fetchGenres(), []);
 
   const {
     data: trendingMovies,
@@ -110,23 +116,30 @@ const Index = () => {
     refetch: refetchAList,
   } = useFetch(aListCallback);
 
+  const { data: genres = [], loading: genresLoading } =
+    useFetch(fetchGenresCallback);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      await Promise.all([
-        refetchTrending(),
-        refetchMovies(),
-        refetchTopRated(),
-        refetchNowPlaying(),
-        refetchUpcoming(),
-        refetchPopular(),
-        refetchAList(),
-      ]);
-    } catch (err) {
-      console.error("Refresh failed:", err);
-    } finally {
-      setRefreshing(false);
+    // Promise.allSettled always resolves, so we check results array for failures
+    const results = await Promise.allSettled([
+      refetchTrending(),
+      refetchMovies(),
+      refetchTopRated(),
+      refetchNowPlaying(),
+      refetchUpcoming(),
+      refetchPopular(),
+      refetchAList(),
+    ]);
+
+    // Check for individual failures if needed
+    const failures = results.filter((result) => result.status === "rejected");
+    if (failures.length > 0) {
+      console.warn(`${failures.length} refresh requests failed`);
+      // Could show a toast notification here
     }
+
+    setRefreshing(false);
   }, [
     refetchTrending,
     refetchMovies,
@@ -169,11 +182,6 @@ const Index = () => {
   useEffect(() => {
     if (!trendingMovies || trendingMovies.length <= 1) return;
 
-    // Calculate item width based on screen size and platform
-    const itemWidth =
-      Platform.OS === "web" ? (isDesktop ? 180 : isTablet ? 160 : 144) : 144; // 144px (w-36) + 16px margin = ~160px total
-    let restartTimer: NodeJS.Timeout | null = null;
-
     const startAutoScroll = () => {
       if (autoScrollTimerRef.current) {
         clearInterval(autoScrollTimerRef.current);
@@ -181,30 +189,49 @@ const Index = () => {
 
       autoScrollTimerRef.current = setInterval(() => {
         if (trendingFlatListRef.current && trendingMovies.length > 0) {
-          currentIndexRef.current =
+          const nextIndex =
             (currentIndexRef.current + 1) % trendingMovies.length;
-          const scrollToX = currentIndexRef.current * itemWidth;
+          currentIndexRef.current = nextIndex;
 
-          trendingFlatListRef.current.scrollToOffset({
-            offset: scrollToX,
-            animated: true,
-          });
+          try {
+            // Use scrollToIndex for more reliable scrolling
+            trendingFlatListRef.current.scrollToIndex({
+              index: nextIndex,
+              animated: true,
+              viewPosition: 0.1, // Position item at 10% from left
+            });
+          } catch (error) {
+            // Fallback to scrollToOffset if scrollToIndex fails
+            const itemWidth = 160;
+            const scrollToX = nextIndex * itemWidth;
+            trendingFlatListRef.current.scrollToOffset({
+              offset: scrollToX,
+              animated: true,
+            });
+          }
         }
       }, 3000); // 3 seconds
     };
 
-    startAutoScroll();
+    // Small delay to ensure FlatList is rendered
+    const initTimer = setTimeout(() => {
+      startAutoScroll();
+    }, 500);
 
     return () => {
       if (autoScrollTimerRef.current) {
         clearInterval(autoScrollTimerRef.current);
         autoScrollTimerRef.current = null;
       }
-      if (restartTimer) {
-        clearTimeout(restartTimer);
+      if (initTimer) {
+        clearTimeout(initTimer);
+      }
+      if (restartAutoScrollRef.current) {
+        clearTimeout(restartAutoScrollRef.current);
+        restartAutoScrollRef.current = null;
       }
     };
-  }, [trendingMovies, isDesktop, isTablet]);
+  }, [trendingMovies]);
 
   // Handle manual scroll - pause auto-scroll temporarily
   const handleTrendingScrollBegin = useCallback(() => {
@@ -212,7 +239,45 @@ const Index = () => {
       clearInterval(autoScrollTimerRef.current);
       autoScrollTimerRef.current = null;
     }
+    // Also clear restart timer if user starts scrolling
+    if (restartAutoScrollRef.current) {
+      clearTimeout(restartAutoScrollRef.current);
+      restartAutoScrollRef.current = null;
+    }
   }, []);
+
+  // Genre Button Component
+  const GenreButton = ({ genre }: { genre: Genre }) => {
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }));
+
+    const handlePressIn = () => {
+      scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+    };
+
+    const handlePressOut = () => {
+      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    };
+
+    return (
+      <AnimatedTouchable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={() => {
+          router.push("/(tabs)/search");
+        }}
+        style={animatedStyle}
+        className="px-5 py-2.5 rounded-full mr-3 mb-3 bg-bg-elevated border border-border-primary"
+      >
+        <Text className="text-sm font-semibold text-text-primary">
+          {genre.name}
+        </Text>
+      </AnimatedTouchable>
+    );
+  };
 
   // Restart auto-scroll after user stops scrolling
   const restartAutoScrollRef = useRef<NodeJS.Timeout | null>(null);
@@ -224,23 +289,30 @@ const Index = () => {
       clearTimeout(restartAutoScrollRef.current);
     }
 
-    // Calculate item width based on screen size
-    const itemWidth =
-      Platform.OS === "web" ? (isDesktop ? 180 : isTablet ? 160 : 144) : 144;
-
     // Restart auto-scroll after 5 seconds of no interaction
     restartAutoScrollRef.current = setTimeout(() => {
       if (trendingFlatListRef.current && trendingMovies.length > 0) {
         autoScrollTimerRef.current = setInterval(() => {
           if (trendingFlatListRef.current && trendingMovies.length > 0) {
-            currentIndexRef.current =
+            const nextIndex =
               (currentIndexRef.current + 1) % trendingMovies.length;
-            const scrollToX = currentIndexRef.current * itemWidth;
+            currentIndexRef.current = nextIndex;
 
-            trendingFlatListRef.current.scrollToOffset({
-              offset: scrollToX,
-              animated: true,
-            });
+            try {
+              trendingFlatListRef.current.scrollToIndex({
+                index: nextIndex,
+                animated: true,
+                viewPosition: 0.1,
+              });
+            } catch (error) {
+              // Fallback to scrollToOffset if scrollToIndex fails
+              const itemWidth = 160;
+              const scrollToX = nextIndex * itemWidth;
+              trendingFlatListRef.current.scrollToOffset({
+                offset: scrollToX,
+                animated: true,
+              });
+            }
           }
         }, 3000);
       }
@@ -248,12 +320,12 @@ const Index = () => {
   }, [trendingMovies, isDesktop, isTablet]);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={["top"]}>
+    <SafeAreaView className="flex-1" edges={["top"]}>
+      <GradientBackground />
       <AnimatedScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
-        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -264,16 +336,60 @@ const Index = () => {
         }
       >
         {/* Header with Logo */}
-        <Animated.View
-          style={headerAnimatedStyle}
-          className="px-6 pt-8 pb-6 flex-row items-center justify-between"
-        >
+        <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
           <Image
             source={icons.logo}
-            className="w-16 h-14"
+            className="w-14 h-12"
             contentFit="contain"
           />
-        </Animated.View>
+        </View>
+
+        {/* Search Bar - Centered and Shorter */}
+        <View className="px-6 mb-4 items-center">
+          <View className="w-full max-w-sm">
+            <SearchBar
+              placeholder="Search for a movie..."
+              value=""
+              onChangeText={() => {
+                // Navigate to search when user starts typing
+                router.push("/(tabs)/search");
+              }}
+              onPress={() => router.push("/(tabs)/search")}
+            />
+          </View>
+        </View>
+
+        {/* Categories/Genres Section */}
+        <View className="mb-6">
+          <View className="px-6 mb-3">
+            <Text className="text-text-primary text-xl font-bold">
+              Browse by Category
+            </Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 24 }}
+          >
+            {genresLoading ? (
+              <View className="flex-row gap-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton
+                    key={i}
+                    width={100}
+                    height={36}
+                    borderRadius={18}
+                    className="mr-3"
+                  />
+                ))}
+              </View>
+            ) : genres.length > 0 ? (
+              genres.map((genre) => (
+                <GenreButton key={genre.id} genre={genre} />
+              ))
+            ) : null}
+          </ScrollView>
+        </View>
 
         {/* Hero Banner */}
         {featuredMovie && (
@@ -281,16 +397,6 @@ const Index = () => {
             <HeroBanner movie={featuredMovie} />
           </View>
         )}
-
-        {/* Search Bar */}
-        <View className="px-6 mb-10">
-          <SearchBar
-            placeholder="Search for a movie..."
-            value=""
-            onChangeText={() => {}}
-            onPress={() => router.push("/(tabs)/search")}
-          />
-        </View>
 
         {/* Loading State */}
         {(moviesLoading || trendingLoading) && !refreshing ? (
@@ -359,22 +465,42 @@ const Index = () => {
                   onMomentumScrollEnd={(event) => {
                     // Update current index based on scroll position
                     const offsetX = event.nativeEvent.contentOffset.x;
-                    const itemWidth =
-                      Platform.OS === "web"
-                        ? isDesktop
-                          ? 180
-                          : isTablet
-                          ? 160
-                          : 144
-                        : 144;
-                    currentIndexRef.current = Math.max(
+                    // Card width is 144px (w-36) + 16px margin = 160px total
+                    const itemWidth = 160;
+                    const newIndex = Math.max(
                       0,
                       Math.min(
                         Math.round(offsetX / itemWidth),
                         (trendingMovies?.length || 1) - 1
                       )
                     );
+                    currentIndexRef.current = newIndex;
                     handleTrendingScrollEnd();
+                  }}
+                  onScrollToIndexFailed={(info) => {
+                    // Handle scroll to index failure gracefully
+                    const wait = new Promise((resolve) =>
+                      setTimeout(resolve, 500)
+                    );
+                    wait.then(() => {
+                      if (trendingFlatListRef.current) {
+                        try {
+                          trendingFlatListRef.current.scrollToIndex({
+                            index: info.index,
+                            animated: true,
+                            viewPosition: 0.1,
+                          });
+                        } catch (error) {
+                          // Final fallback to scrollToOffset
+                          const itemWidth = 160;
+                          const scrollToX = info.index * itemWidth;
+                          trendingFlatListRef.current.scrollToOffset({
+                            offset: scrollToX,
+                            animated: true,
+                          });
+                        }
+                      }
+                    });
                   }}
                   // Optimize for web and mobile
                   removeClippedSubviews={Platform.OS !== "web"}
@@ -382,14 +508,8 @@ const Index = () => {
                   maxToRenderPerBatch={Platform.OS === "web" ? 8 : 5}
                   windowSize={Platform.OS === "web" ? 10 : 5}
                   getItemLayout={(data, index) => {
-                    const itemWidth =
-                      Platform.OS === "web"
-                        ? isDesktop
-                          ? 180
-                          : isTablet
-                          ? 160
-                          : 144
-                        : 144;
+                    // Card width is 144px (w-36) + 16px margin = 160px total
+                    const itemWidth = 160;
                     return {
                       length: itemWidth,
                       offset: itemWidth * index,

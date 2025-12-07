@@ -14,12 +14,12 @@ module.exports = {
         "2xl": "1536px",
       },
       colors: {
-        // Background colors (50% lighter)
+        // Background colors (lighter for better visibility)
         bg: {
-          primary: "#858587", // 50% lighter from #0A0A0F
-          secondary: "#89898D", // 50% lighter from #12121A
-          tertiary: "#8D8D92", // 50% lighter from #1A1A24
-          elevated: "#929298", // 50% lighter from #242430
+          primary: "#A0A0A5", // Lighter grey
+          secondary: "#A5A5A9", // Lighter grey
+          tertiary: "#AAAAAE", // Lighter grey
+          elevated: "#AFAFB3", // Lighter grey
         },
         // Accent colors
         accent: {
@@ -46,16 +46,16 @@ module.exports = {
         error: "#EF4444",
         info: "#3B82F6",
         // Legacy support (keeping for backward compatibility)
-        primary: "#0A0A0F",
-        secondary1: "#12121A",
+        primary: "#3C1B58",
+        secondary1: "#4A2A6A",
         light: {
           100: "#E4E4E7",
           200: "#A1A1AA",
           300: "#71717A",
         },
         dark: {
-          100: "#1A1A24",
-          200: "#0A0A0F",
+          100: "#4A2A6A",
+          200: "#3C1B58",
         },
       },
       spacing: {

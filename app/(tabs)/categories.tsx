@@ -1,30 +1,31 @@
-import MovieCard from '@/components/MovieCard';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { icons } from '@/constants/icons';
-import { Genre } from '@/interfaces/interfaces';
-import { fetchGenres, fetchMoviesByGenre } from '@/services/api';
-import useFetch from '@/services/useFetch';
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import MovieCard from "@/components/MovieCard";
+import SearchBar from "@/components/SearchBar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { icons } from "@/constants/icons";
+import { Genre } from "@/interfaces/interfaces";
+import { fetchGenres, fetchMoviesByGenre } from "@/services/api";
+import useFetch from "@/services/useFetch";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    RefreshControl,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+  Dimensions,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isTablet = SCREEN_WIDTH >= 768;
 const isDesktop = SCREEN_WIDTH >= 1024;
 
@@ -63,7 +64,7 @@ const Categories = () => {
         await refetchMovies();
       }
     } catch (err) {
-      console.error('Refresh failed:', err);
+      console.error("Refresh failed:", err);
     } finally {
       setRefreshing(false);
     }
@@ -99,13 +100,13 @@ const Categories = () => {
         style={animatedStyle}
         className={`px-6 py-3 rounded-full mr-3 mb-3 ${
           isSelected
-            ? 'bg-accent-primary'
-            : 'bg-bg-elevated border border-border-primary'
+            ? "bg-accent-primary"
+            : "bg-bg-elevated border border-border-primary"
         }`}
       >
         <Text
           className={`text-base font-semibold ${
-            isSelected ? 'text-white' : 'text-text-primary'
+            isSelected ? "text-white" : "text-text-primary"
           }`}
         >
           {genre.name}
@@ -115,11 +116,29 @@ const Categories = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['top']}>
+    <SafeAreaView className="flex-1" edges={["top"]}>
       <View className="flex-1">
         {/* Header */}
         <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
-          <Image source={icons.logo} className="w-14 h-12" contentFit="contain" />
+          <Image
+            source={icons.logo}
+            className="w-14 h-12"
+            contentFit="contain"
+          />
+        </View>
+
+        {/* Search Bar - Centered and Shorter */}
+        <View className="px-6 mb-4 items-center">
+          <View className="w-full max-w-sm">
+            <SearchBar
+              placeholder="Search for a movie..."
+              value=""
+              onChangeText={() => {
+                router.push("/(tabs)/search");
+              }}
+              onPress={() => router.push("/(tabs)/search")}
+            />
+          </View>
         </View>
 
         <ScrollView
@@ -130,7 +149,7 @@ const Categories = () => {
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor="#8B5CF6"
-              colors={['#8B5CF6']}
+              colors={["#8B5CF6"]}
             />
           }
         >
@@ -158,7 +177,7 @@ const Categories = () => {
             ) : genresError ? (
               <EmptyState
                 title="Failed to load genres"
-                message={genresError || 'Please try again later'}
+                message={genresError || "Please try again later"}
               />
             ) : (
               <View className="flex-row flex-wrap">
@@ -178,7 +197,8 @@ const Categories = () => {
                     {selectedGenre.name} Movies
                   </Text>
                   <Text className="text-text-secondary text-sm">
-                    {movies.length} {movies.length === 1 ? 'movie' : 'movies'} found
+                    {movies.length} {movies.length === 1 ? "movie" : "movies"}{" "}
+                    found
                   </Text>
                 </View>
               </View>
@@ -188,7 +208,7 @@ const Categories = () => {
                   {[1, 2, 3, 4, 5, 6].map((i) => (
                     <Skeleton
                       key={i}
-                      width={isDesktop ? '22%' : isTablet ? '30%' : '45%'}
+                      width={isDesktop ? "22%" : isTablet ? "30%" : "45%"}
                       height={280}
                       borderRadius={12}
                     />
@@ -205,7 +225,7 @@ const Categories = () => {
                   renderItem={({ item }) => (
                     <MovieCard
                       {...item}
-                      size={isDesktop ? 'medium' : 'small'}
+                      size={isDesktop ? "medium" : "small"}
                       showRating={true}
                       className="mb-4"
                     />
@@ -215,7 +235,7 @@ const Categories = () => {
                   columnWrapperStyle={
                     numColumns > 1
                       ? {
-                          justifyContent: 'flex-start',
+                          justifyContent: "flex-start",
                           gap: isDesktop ? 20 : 16,
                           marginBottom: isDesktop ? 20 : 16,
                         }

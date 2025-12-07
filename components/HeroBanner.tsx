@@ -73,8 +73,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       </Animated.View>
 
       {/* Gradient Overlay - Enhanced */}
-      <View className="absolute inset-0 bg-black/20" />
-      <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/90" />
+      <View className="absolute inset-0 bg-black/10" />
+      <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/65" />
 
       {/* Content */}
       <Animated.View

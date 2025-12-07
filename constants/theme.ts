@@ -5,12 +5,12 @@
  */
 
 export const colors = {
-  // Dark theme base colors (50% lighter)
+  // Dark theme base colors (lighter for better visibility)
   background: {
-    primary: '#858587',      // 50% lighter from #0A0A0F
-    secondary: '#89898D',    // 50% lighter from #12121A
-    tertiary: '#8D8D92',     // 50% lighter from #1A1A24
-    elevated: '#929298',      // 50% lighter from #242430
+    primary: '#A0A0A5',      // Lighter grey
+    secondary: '#A5A5A9',    // Lighter grey
+    tertiary: '#AAAAAE',     // Lighter grey
+    elevated: '#AFAFB3',      // Lighter grey
   },
   
   // Accent colors (vibrant purple/blue gradient system)
@@ -38,11 +38,11 @@ export const colors = {
   error: '#EF4444',
   info: '#3B82F6',
   
-  // Overlay colors
+  // Overlay colors (lighter for better visibility)
   overlay: {
-    dark: 'rgba(0, 0, 0, 0.7)',
-    darker: 'rgba(0, 0, 0, 0.85)',
-    gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)',
+    dark: 'rgba(0, 0, 0, 0.5)',
+    darker: 'rgba(0, 0, 0, 0.65)',
+    gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%)',
   },
   
   // Border colors

@@ -108,7 +108,7 @@ export const getCurrentUser = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) throw error;
     return user;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Don't log expected errors (no session, invalid token)
     const expectedErrors = [
       'Invalid Refresh Token: Refresh Token Not Found',
@@ -116,8 +116,11 @@ export const getCurrentUser = async () => {
       'AuthSessionMissingError',
     ];
     
+    const errorMessage = error instanceof Error ? error.message : '';
+    const errorName = error instanceof Error ? error.name : '';
+    
     const isExpectedError = expectedErrors.some(
-      (expected) => error.message?.includes(expected) || error.name?.includes(expected)
+      (expected) => errorMessage.includes(expected) || errorName.includes(expected)
     );
     
     if (!isExpectedError) {
@@ -137,9 +140,10 @@ export const sendMagicLink = async (email: string) => {
     });
     if (error) throw error;
     return { userId: data.user?.id || '' };
-  } catch (error: any) {
-    console.error('Send magic link error:', error);
-    throw error;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send magic link';
+    console.error('Send magic link error:', errorMessage);
+    throw error instanceof Error ? error : new Error(errorMessage);
   }
 };
 
@@ -152,9 +156,10 @@ export const loginWithOTP = async (email: string, token: string) => {
     });
     if (error) throw error;
     return data;
-  } catch (error: any) {
-    console.error('Login with OTP error:', error);
-    throw error;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to verify OTP';
+    console.error('Login with OTP error:', errorMessage);
+    throw error instanceof Error ? error : new Error(errorMessage);
   }
 };
 
@@ -359,9 +364,10 @@ export const toggleSaveMovie = async (movie: {
       console.log('Movie saved:', movie.id);
       return { isSaved: true };
     }
-  } catch (err: any) {
-    console.error('Error toggling save movie:', err);
-    return { isSaved: false, error: err.message || 'Failed to toggle save status' };
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to toggle save status';
+    console.error('Error toggling save movie:', errorMessage);
+    return { isSaved: false, error: errorMessage };
   }
 };
 
