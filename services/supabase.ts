@@ -98,13 +98,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: getStorageAdapter(),
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: Platform.OS === 'web', // Enable URL detection for web magic links
   },
 });
 
 // Auth Functions
 export const getCurrentUser = async () => {
   try {
+    // First try to get user from session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      throw sessionError;
+    }
+    
+    if (session?.user) {
+      return session.user;
+    }
+    
+    // Fallback to getUser if session doesn't have user
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) throw error;
     return user;
@@ -130,19 +142,29 @@ export const getCurrentUser = async () => {
   }
 };
 
+// Listen to auth state changes
+export const onAuthStateChange = (callback: (user: any) => void) => {
+  return supabase.auth.onAuthStateChange((event, session) => {
+    callback(session?.user ?? null);
+  });
+};
+
 export const sendMagicLink = async (email: string) => {
   try {
+    // signInWithOtp sends OTP code if email template uses {{ .Token }}, or magic link if uses {{ .ConfirmationURL }}
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: undefined, // No redirect for mobile
+        shouldCreateUser: true, // Create user if doesn't exist
       },
     });
     if (error) throw error;
-    return { userId: data.user?.id || '' };
+    const userId = (data?.user as { id?: string } | null)?.id || '';
+    return { userId };
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to send magic link';
-    console.error('Send magic link error:', errorMessage);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send verification code';
+    console.error('Send OTP error:', errorMessage);
     throw error instanceof Error ? error : new Error(errorMessage);
   }
 };

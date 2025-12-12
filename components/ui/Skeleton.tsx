@@ -1,27 +1,26 @@
-import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import React, { useEffect } from "react";
 import Animated, {
-  useSharedValue,
+  Easing,
   useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withTiming,
-  Easing,
-} from 'react-native-reanimated';
+} from "react-native-reanimated";
 
 export interface SkeletonProps {
   width?: number | string;
   height?: number | string;
   borderRadius?: number;
   className?: string;
-  variant?: 'default' | 'pulse';
+  variant?: "default" | "pulse";
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
-  width = '100%',
+  width = "100%",
   height = 20,
   borderRadius = 8,
-  className = '',
-  variant = 'default',
+  className = "",
+  variant = "default",
 }) => {
   const opacity = useSharedValue(0.4);
 
@@ -45,13 +44,12 @@ export const Skeleton: React.FC<SkeletonProps> = ({
       className={`bg-bg-tertiary ${className}`}
       style={[
         {
-          width,
-          height,
+          width: typeof width === "string" ? width : width,
+          height: typeof height === "string" ? height : height,
           borderRadius,
-        },
+        } as any,
         animatedStyle,
       ]}
     />
   );
 };
-

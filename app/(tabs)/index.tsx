@@ -1,4 +1,6 @@
+import { CategoryPillsLoop } from "@/components/CategoryPillsLoop";
 import { GradientBackground } from "@/components/GradientBackground";
+import { Header } from "@/components/Header";
 import HeroBanner from "@/components/HeroBanner";
 import MovieCard from "@/components/MovieCard";
 import MovieRow from "@/components/MovieRow";
@@ -6,8 +8,6 @@ import SearchBar from "@/components/SearchBar";
 import TrendingCard from "@/components/TrendingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { icons } from "@/constants/icons";
-import { Genre } from "@/interfaces/interfaces";
 import {
   fetchAListMovies,
   fetchGenres,
@@ -19,15 +19,8 @@ import {
 } from "@/services/api";
 import { getTrendingMovies } from "@/services/supabase";
 import useFetch from "@/services/useFetch";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -44,7 +37,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -53,14 +45,15 @@ const isTablet = SCREEN_WIDTH >= 768;
 const isDesktop = SCREEN_WIDTH >= 1024;
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const Index = () => {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useSharedValue(0);
   const trendingFlatListRef = useRef<FlatList>(null);
-  const autoScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
   const currentIndexRef = useRef(0);
 
   const fetchMoviesCallback = useCallback(() => fetchMovies({ query: "" }), []);
@@ -176,7 +169,10 @@ const Index = () => {
   );
 
   // Memoize latest movies slice to avoid unnecessary re-renders
-  const latestMovies = useMemo(() => movies?.slice(0, 12) || [], [movies]);
+  const latestMovies = useMemo(() => {
+    if (!movies || !Array.isArray(movies)) return [];
+    return movies.slice(0, 12);
+  }, [movies]);
 
   // Auto-scroll carousel every 3 seconds
   useEffect(() => {
@@ -246,41 +242,10 @@ const Index = () => {
     }
   }, []);
 
-  // Genre Button Component
-  const GenreButton = ({ genre }: { genre: Genre }) => {
-    const scale = useSharedValue(1);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
-    const handlePressIn = () => {
-      scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-    };
-
-    const handlePressOut = () => {
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-    };
-
-    return (
-      <AnimatedTouchable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={() => {
-          router.push("/(tabs)/search");
-        }}
-        style={animatedStyle}
-        className="px-5 py-2.5 rounded-full mr-3 mb-3 bg-bg-elevated border border-border-primary"
-      >
-        <Text className="text-sm font-semibold text-text-primary">
-          {genre.name}
-        </Text>
-      </AnimatedTouchable>
-    );
-  };
-
   // Restart auto-scroll after user stops scrolling
-  const restartAutoScrollRef = useRef<NodeJS.Timeout | null>(null);
+  const restartAutoScrollRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const handleTrendingScrollEnd = useCallback(() => {
     if (!trendingMovies || trendingMovies.length <= 1) return;
 
@@ -322,335 +287,325 @@ const Index = () => {
   return (
     <SafeAreaView className="flex-1" edges={["top"]}>
       <GradientBackground />
-      <AnimatedScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#8B5CF6"
-            colors={["#8B5CF6"]}
-          />
-        }
-      >
-        {/* Header with Logo */}
-        <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
-          <Image
-            source={icons.logo}
-            className="w-14 h-12"
-            contentFit="contain"
-          />
-        </View>
-
-        {/* Search Bar - Centered and Shorter */}
-        <View className="px-6 mb-4 items-center">
-          <View className="w-full max-w-sm">
-            <SearchBar
-              placeholder="Search for a movie..."
-              value=""
-              onChangeText={() => {
-                // Navigate to search when user starts typing
-                router.push("/(tabs)/search");
-              }}
-              onPress={() => router.push("/(tabs)/search")}
+      <View className="flex-1" style={{ maxWidth: "100%", width: "100%" }}>
+        <AnimatedScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          onScroll={scrollHandler}
+          contentContainerStyle={{ width: "100%", maxWidth: "100%" }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#8B5CF6"
+              colors={["#8B5CF6"]}
             />
-          </View>
-        </View>
+          }
+        >
+          {/* Header with Logo */}
+          <Header />
 
-        {/* Categories/Genres Section */}
-        <View className="mb-6">
-          <View className="px-6 mb-3">
-            <Text className="text-text-primary text-xl font-bold">
-              Browse by Category
-            </Text>
+          {/* Search Bar - Centered and Shorter */}
+          <View className="px-6 mb-4 items-center">
+            <View className="w-full max-w-sm">
+              <SearchBar
+                placeholder="Search for a movie..."
+                value=""
+                onChangeText={() => {
+                  // Navigate to search when user starts typing
+                  router.push("/(tabs)/search");
+                }}
+                onPress={() => router.push("/(tabs)/search")}
+              />
+            </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 24 }}
-          >
-            {genresLoading ? (
-              <View className="flex-row gap-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
+
+          {/* Categories/Genres Section - Hidden on large screens */}
+          {!isDesktop && (
+            <View className="mb-6">
+              <View className="px-6 mb-3">
+                <Text className="text-text-primary text-xl font-bold">
+                  Browse by Category
+                </Text>
+              </View>
+              <CategoryPillsLoop genres={genres} loading={genresLoading} />
+            </View>
+          )}
+
+          {/* Hero Banner */}
+          {featuredMovie && (
+            <View className="mb-10">
+              <HeroBanner movie={featuredMovie} />
+            </View>
+          )}
+
+          {/* Loading State */}
+          {(moviesLoading || trendingLoading) && !refreshing ? (
+            <View className="px-6">
+              <Skeleton
+                width="100%"
+                height={200}
+                borderRadius={12}
+                className="mb-4"
+              />
+              <View className="flex-row gap-4">
+                {[1, 2, 3].map((i) => (
                   <Skeleton
                     key={i}
-                    width={100}
-                    height={36}
-                    borderRadius={18}
-                    className="mr-3"
+                    width="30%"
+                    height={250}
+                    borderRadius={12}
                   />
                 ))}
               </View>
-            ) : genres.length > 0 ? (
-              genres.map((genre) => (
-                <GenreButton key={genre.id} genre={genre} />
-              ))
-            ) : null}
-          </ScrollView>
-        </View>
-
-        {/* Hero Banner */}
-        {featuredMovie && (
-          <View className="mb-10">
-            <HeroBanner movie={featuredMovie} />
-          </View>
-        )}
-
-        {/* Loading State */}
-        {(moviesLoading || trendingLoading) && !refreshing ? (
-          <View className="px-6">
-            <Skeleton
-              width="100%"
-              height={200}
-              borderRadius={12}
-              className="mb-4"
-            />
-            <View className="flex-row gap-4">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} width="30%" height={250} borderRadius={12} />
-              ))}
             </View>
-          </View>
-        ) : moviesError || trendingError ? (
-          <View className="px-6 py-12">
-            <EmptyState
-              title="Something went wrong"
-              message={moviesError || trendingError || "Failed to load movies"}
-            />
-          </View>
-        ) : (
-          <View className="pb-32">
-            {/* Trending Movies */}
-            {trendingMovies && trendingMovies.length > 0 && (
-              <View className="mb-14">
-                <View className="flex-row items-center justify-between mb-6 px-6">
-                  <View>
-                    <Text className="text-text-primary text-3xl font-bold mb-1">
-                      Trending Now
-                    </Text>
-                    <Text className="text-text-tertiary text-sm">
-                      What's hot right now
-                    </Text>
+          ) : moviesError || trendingError ? (
+            <View className="px-6 py-12">
+              <EmptyState
+                title="Something went wrong"
+                message={
+                  moviesError || trendingError || "Failed to load movies"
+                }
+              />
+            </View>
+          ) : (
+            <View className="pb-32" style={{ width: "100%", maxWidth: "100%" }}>
+              {/* Trending Movies */}
+              {trendingMovies && trendingMovies.length > 0 && (
+                <View className="mb-14" style={{ width: "100%" }}>
+                  <View className="flex-row items-center justify-between mb-6 px-6">
+                    <View>
+                      <Text className="text-text-primary text-3xl font-bold mb-1">
+                        Trending Now
+                      </Text>
+                      <Text className="text-text-tertiary text-sm">
+                        What's hot right now
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => router.push("/(tabs)/search")}
+                      activeOpacity={0.7}
+                      className="px-4 py-2 rounded-full bg-accent-primary/10"
+                    >
+                      <Text className="text-accent-primary text-base font-semibold">
+                        See All →
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/search")}
-                    activeOpacity={0.7}
-                    className="px-4 py-2 rounded-full bg-accent-primary/10"
-                  >
-                    <Text className="text-accent-primary text-base font-semibold">
-                      See All →
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  ref={trendingFlatListRef}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={trendingMovies}
-                  renderItem={({ item, index }) => (
-                    <TrendingCard movie={item} index={index} />
-                  )}
-                  keyExtractor={(item) => item.movie_id.toString()}
-                  contentContainerStyle={{ paddingLeft: 24, paddingRight: 24 }}
-                  ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
-                  // Enhanced carousel
-                  scrollEventThrottle={16}
-                  bounces={true}
-                  alwaysBounceHorizontal={true}
-                  decelerationRate="fast"
-                  onScrollBeginDrag={handleTrendingScrollBegin}
-                  onScrollEndDrag={handleTrendingScrollEnd}
-                  onMomentumScrollEnd={(event) => {
-                    // Update current index based on scroll position
-                    const offsetX = event.nativeEvent.contentOffset.x;
-                    // Card width is 144px (w-36) + 16px margin = 160px total
-                    const itemWidth = 160;
-                    const newIndex = Math.max(
-                      0,
-                      Math.min(
-                        Math.round(offsetX / itemWidth),
-                        (trendingMovies?.length || 1) - 1
-                      )
-                    );
-                    currentIndexRef.current = newIndex;
-                    handleTrendingScrollEnd();
-                  }}
-                  onScrollToIndexFailed={(info) => {
-                    // Handle scroll to index failure gracefully
-                    const wait = new Promise((resolve) =>
-                      setTimeout(resolve, 500)
-                    );
-                    wait.then(() => {
-                      if (trendingFlatListRef.current) {
-                        try {
-                          trendingFlatListRef.current.scrollToIndex({
-                            index: info.index,
-                            animated: true,
-                            viewPosition: 0.1,
-                          });
-                        } catch (error) {
-                          // Final fallback to scrollToOffset
-                          const itemWidth = 160;
-                          const scrollToX = info.index * itemWidth;
-                          trendingFlatListRef.current.scrollToOffset({
-                            offset: scrollToX,
-                            animated: true,
-                          });
+                  <FlatList
+                    ref={trendingFlatListRef}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={trendingMovies}
+                    renderItem={({ item, index }) => (
+                      <TrendingCard movie={item} index={index} />
+                    )}
+                    keyExtractor={(item) => item.movie_id.toString()}
+                    contentContainerStyle={{
+                      paddingLeft: 24,
+                      paddingRight: 24,
+                    }}
+                    ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
+                    // Enhanced carousel
+                    scrollEventThrottle={16}
+                    bounces={true}
+                    alwaysBounceHorizontal={true}
+                    decelerationRate="fast"
+                    onScrollBeginDrag={handleTrendingScrollBegin}
+                    onScrollEndDrag={handleTrendingScrollEnd}
+                    onMomentumScrollEnd={(event) => {
+                      // Update current index based on scroll position
+                      const offsetX = event.nativeEvent.contentOffset.x;
+                      // Card width is 144px (w-36) + 16px margin = 160px total
+                      const itemWidth = 160;
+                      const newIndex = Math.max(
+                        0,
+                        Math.min(
+                          Math.round(offsetX / itemWidth),
+                          (trendingMovies?.length || 1) - 1
+                        )
+                      );
+                      currentIndexRef.current = newIndex;
+                      handleTrendingScrollEnd();
+                    }}
+                    onScrollToIndexFailed={(info) => {
+                      // Handle scroll to index failure gracefully
+                      const wait = new Promise((resolve) =>
+                        setTimeout(resolve, 500)
+                      );
+                      wait.then(() => {
+                        if (trendingFlatListRef.current) {
+                          try {
+                            trendingFlatListRef.current.scrollToIndex({
+                              index: info.index,
+                              animated: true,
+                              viewPosition: 0.1,
+                            });
+                          } catch (error) {
+                            // Final fallback to scrollToOffset
+                            const itemWidth = 160;
+                            const scrollToX = info.index * itemWidth;
+                            trendingFlatListRef.current.scrollToOffset({
+                              offset: scrollToX,
+                              animated: true,
+                            });
+                          }
                         }
-                      }
-                    });
-                  }}
-                  // Optimize for web and mobile
-                  removeClippedSubviews={Platform.OS !== "web"}
-                  initialNumToRender={Platform.OS === "web" ? 8 : 5}
-                  maxToRenderPerBatch={Platform.OS === "web" ? 8 : 5}
-                  windowSize={Platform.OS === "web" ? 10 : 5}
-                  getItemLayout={(data, index) => {
-                    // Card width is 144px (w-36) + 16px margin = 160px total
-                    const itemWidth = 160;
-                    return {
-                      length: itemWidth,
-                      offset: itemWidth * index,
-                      index,
-                    };
-                  }}
-                />
-              </View>
-            )}
+                      });
+                    }}
+                    // Optimize for web and mobile
+                    removeClippedSubviews={Platform.OS !== "web"}
+                    initialNumToRender={Platform.OS === "web" ? 8 : 5}
+                    maxToRenderPerBatch={Platform.OS === "web" ? 8 : 5}
+                    windowSize={Platform.OS === "web" ? 10 : 5}
+                    getItemLayout={(data, index) => {
+                      // Card width is 144px (w-36) + 16px margin = 160px total
+                      const itemWidth = 160;
+                      return {
+                        length: itemWidth,
+                        offset: itemWidth * index,
+                        index,
+                      };
+                    }}
+                  />
+                </View>
+              )}
 
-            {/* A-List Movies (High-Rated Blockbusters) */}
-            <MovieRow
-              title="A-List Watchlist"
-              movies={aListMovies}
-              loading={aListLoading}
-              numItems={10}
-              onSeeAll={() =>
-                router.push({
-                  pathname: "/(tabs)/search",
-                  params: { filter: "a-list" },
-                })
-              }
-            />
+              {/* A-List Movies (High-Rated Blockbusters) */}
+              <MovieRow
+                title="A-List Watchlist"
+                movies={aListMovies}
+                loading={aListLoading}
+                numItems={10}
+                onSeeAll={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { filter: "a-list" },
+                  })
+                }
+              />
 
-            {/* Top Rated Movies */}
-            <MovieRow
-              title="Top Rated"
-              movies={topRatedMovies}
-              loading={topRatedLoading}
-              numItems={10}
-              onSeeAll={() =>
-                router.push({
-                  pathname: "/(tabs)/search",
-                  params: { filter: "top-rated" },
-                })
-              }
-            />
+              {/* Top Rated Movies */}
+              <MovieRow
+                title="Top Rated"
+                movies={topRatedMovies}
+                loading={topRatedLoading}
+                numItems={10}
+                onSeeAll={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { filter: "top-rated" },
+                  })
+                }
+              />
 
-            {/* Now Playing */}
-            <MovieRow
-              title="Now Playing"
-              movies={nowPlayingMovies}
-              loading={nowPlayingLoading}
-              numItems={10}
-              onSeeAll={() =>
-                router.push({
-                  pathname: "/(tabs)/search",
-                  params: { filter: "now-playing" },
-                })
-              }
-            />
+              {/* Now Playing */}
+              <MovieRow
+                title="Now Playing"
+                movies={nowPlayingMovies}
+                loading={nowPlayingLoading}
+                numItems={10}
+                onSeeAll={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { filter: "now-playing" },
+                  })
+                }
+              />
 
-            {/* Popular This Week */}
-            <MovieRow
-              title="Popular This Week"
-              movies={popularMovies}
-              loading={popularLoading}
-              numItems={10}
-              onSeeAll={() =>
-                router.push({
-                  pathname: "/(tabs)/search",
-                  params: { filter: "popular" },
-                })
-              }
-            />
+              {/* Popular This Week */}
+              <MovieRow
+                title="Popular This Week"
+                movies={popularMovies}
+                loading={popularLoading}
+                numItems={10}
+                onSeeAll={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { filter: "popular" },
+                  })
+                }
+              />
 
-            {/* Upcoming Movies */}
-            <MovieRow
-              title="Coming Soon"
-              movies={upcomingMovies}
-              loading={upcomingLoading}
-              numItems={10}
-              onSeeAll={() =>
-                router.push({
-                  pathname: "/(tabs)/search",
-                  params: { filter: "upcoming" },
-                })
-              }
-            />
+              {/* Upcoming Movies */}
+              <MovieRow
+                title="Coming Soon"
+                movies={upcomingMovies}
+                loading={upcomingLoading}
+                numItems={10}
+                onSeeAll={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { filter: "upcoming" },
+                  })
+                }
+              />
 
-            {/* Latest Movies Grid */}
-            {movies && movies.length > 0 && (
-              <View className="px-6 mt-8">
-                <View className="flex-row items-center justify-between mb-6">
-                  <View className="flex-1">
-                    <Text className="text-text-primary text-3xl font-bold mb-1">
-                      Latest Movies
-                    </Text>
-                    <Text className="text-text-tertiary text-sm">
-                      Discover new releases
-                    </Text>
+              {/* Latest Movies Grid */}
+              {movies && movies.length > 0 && (
+                <View
+                  className="px-6 mt-8"
+                  style={{ width: "100%", maxWidth: "100%" }}
+                >
+                  <View className="flex-row items-center justify-between mb-6">
+                    <View className="flex-1">
+                      <Text className="text-text-primary text-3xl font-bold mb-1">
+                        Latest Movies
+                      </Text>
+                      <Text className="text-text-tertiary text-sm">
+                        Discover new releases
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => router.push("/(tabs)/search")}
+                      activeOpacity={0.7}
+                      className="px-4 py-2 rounded-full bg-accent-primary/10 ml-4"
+                    >
+                      <Text className="text-accent-primary text-base font-semibold">
+                        See All →
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/search")}
-                    activeOpacity={0.7}
-                    className="px-4 py-2 rounded-full bg-accent-primary/10 ml-4"
-                  >
-                    <Text className="text-accent-primary text-base font-semibold">
-                      See All →
-                    </Text>
-                  </TouchableOpacity>
+                  <FlatList
+                    data={latestMovies}
+                    renderItem={({ item }) => (
+                      <MovieCard
+                        {...item}
+                        size={isDesktop ? "medium" : "small"}
+                        showRating={true}
+                        className={isDesktop ? "mb-6" : "mb-4"}
+                      />
+                    )}
+                    keyExtractor={(item) => item.id.toString()}
+                    numColumns={numColumns}
+                    columnWrapperStyle={
+                      numColumns > 1
+                        ? {
+                            justifyContent: "flex-start",
+                            gap: isDesktop ? 20 : 16,
+                            marginBottom: isDesktop ? 24 : 16,
+                          }
+                        : undefined
+                    }
+                    scrollEnabled={false}
+                    // Performance optimizations
+                    removeClippedSubviews={Platform.OS !== "web"}
+                    initialNumToRender={Platform.OS === "web" ? 12 : 6}
+                    maxToRenderPerBatch={Platform.OS === "web" ? 12 : 6}
+                    windowSize={Platform.OS === "web" ? 10 : 5}
+                    ListEmptyComponent={
+                      <EmptyState
+                        title="No movies found"
+                        message="Try refreshing or check your connection"
+                      />
+                    }
+                  />
                 </View>
-                <FlatList
-                  data={latestMovies}
-                  renderItem={({ item }) => (
-                    <MovieCard
-                      {...item}
-                      size={isDesktop ? "medium" : "small"}
-                      showRating={true}
-                      className={isDesktop ? "mb-6" : "mb-4"}
-                    />
-                  )}
-                  keyExtractor={(item) => item.id.toString()}
-                  numColumns={numColumns}
-                  columnWrapperStyle={
-                    numColumns > 1
-                      ? {
-                          justifyContent: "flex-start",
-                          gap: isDesktop ? 20 : 16,
-                          marginBottom: isDesktop ? 24 : 16,
-                        }
-                      : undefined
-                  }
-                  scrollEnabled={false}
-                  // Performance optimizations
-                  removeClippedSubviews={Platform.OS !== "web"}
-                  initialNumToRender={Platform.OS === "web" ? 12 : 6}
-                  maxToRenderPerBatch={Platform.OS === "web" ? 12 : 6}
-                  windowSize={Platform.OS === "web" ? 10 : 5}
-                  ListEmptyComponent={
-                    <EmptyState
-                      title="No movies found"
-                      message="Try refreshing or check your connection"
-                    />
-                  }
-                />
-              </View>
-            )}
-          </View>
-        )}
-      </AnimatedScrollView>
+              )}
+            </View>
+          )}
+        </AnimatedScrollView>
+      </View>
     </SafeAreaView>
   );
 };

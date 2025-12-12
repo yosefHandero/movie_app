@@ -1,4 +1,3 @@
-// in services/useFetch.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function useFetch<T>(fetchFunction: () => Promise<T | undefined>) {

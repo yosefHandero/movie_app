@@ -140,6 +140,13 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="categories"
+        options={{
+          href: null, // Hide from tab bar - only accessible on smaller screens
+        }}
+      />
     </Tabs>
   );
 }

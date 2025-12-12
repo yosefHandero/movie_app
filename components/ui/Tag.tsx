@@ -1,6 +1,10 @@
-import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import React from "react";
+import { Text, TouchableOpacity, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -15,7 +19,7 @@ export const Tag: React.FC<TagProps> = ({
   label,
   onPress,
   selected = false,
-  className = '',
+  className = "",
 }) => {
   const scale = useSharedValue(1);
 
@@ -40,9 +44,10 @@ export const Tag: React.FC<TagProps> = ({
       onPressOut={handlePressOut}
       className={`
         px-3 py-1.5 rounded-full
-        ${selected 
-          ? 'bg-accent-primary' 
-          : 'bg-bg-tertiary border border-border-light'
+        ${
+          selected
+            ? "bg-accent-primary"
+            : "bg-bg-tertiary border border-border-light"
         }
         ${className}
       `}
@@ -50,7 +55,7 @@ export const Tag: React.FC<TagProps> = ({
     >
       <Text
         className={`text-sm font-medium ${
-          selected ? 'text-white' : 'text-text-secondary'
+          selected ? "text-white" : "text-text-secondary"
         }`}
       >
         {label}
@@ -58,4 +63,3 @@ export const Tag: React.FC<TagProps> = ({
     </Component>
   );
 };
-

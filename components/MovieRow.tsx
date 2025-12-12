@@ -102,16 +102,31 @@ const MovieRow: React.FC<MovieRowProps> = ({
     const webHoverStyle =
       Platform.OS === "web"
         ? {
-            // @ts-ignore
+            // @ts-ignore - web-only styles
             transition: "transform 0.2s ease",
-            cursor: "pointer",
+            cursor: "pointer" as any,
           }
-        : {};
+        : undefined;
 
     if (variant === "trending") {
       return (
-        <View className={index === 0 ? "ml-6" : "ml-4"} style={webHoverStyle}>
-          <TrendingCard movie={item as any} index={index} />
+        <View
+          className={index === 0 ? "ml-6" : "ml-4"}
+          // @ts-ignore - web-only style props
+          style={webHoverStyle as any}
+        >
+          <TrendingCard
+            movie={{
+              searchTerm: item.title,
+              movie_id: item.id,
+              title: item.title,
+              count: item.vote_count,
+              poster_url: item.poster_path
+                ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+                : "",
+            }}
+            index={index}
+          />
         </View>
       );
     }
@@ -120,6 +135,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
       <AnimatedTouchable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        // @ts-ignore - web-only styles in webHoverStyle
         style={[animatedStyle, webHoverStyle]}
         className={index === 0 ? "ml-6" : "ml-4"}
         activeOpacity={0.9}
@@ -131,6 +147,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
               }
             : undefined
         }
+        // @ts-ignore - web-only props
         onMouseLeave={
           Platform.OS === "web"
             ? () => {
@@ -149,7 +166,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
   };
 
   return (
-    <View className="mb-14">
+    <View className="mb-14" style={{ width: "100%", maxWidth: "100%" }}>
       <View className="flex-row items-center justify-between mb-6 px-6">
         <View className="flex-1">
           <Text className="text-text-primary text-3xl font-bold mb-1">
@@ -205,11 +222,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
         directionalLockEnabled={true}
         // Better touch handling
         overScrollMode="auto"
-        // Web optimizations
-        {...(Platform.OS === "web" && {
-          // @ts-ignore - web-only props
-          style: { WebkitOverflowScrolling: "touch" },
-        })}
+        // Web optimizations - apply web-only styles via className or remove if not needed
       />
     </View>
   );

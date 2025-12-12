@@ -1,8 +1,10 @@
+import { CategoryPillsLoop } from "@/components/CategoryPillsLoop";
+import { GradientBackground } from "@/components/GradientBackground";
+import { Header } from "@/components/Header";
 import MovieCard from "@/components/MovieCard";
 import SearchBar from "@/components/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { icons } from "@/constants/icons";
 import { Genre } from "@/interfaces/interfaces";
 import {
   discoverMovies,
@@ -17,9 +19,8 @@ import {
 } from "@/services/api";
 import { updateSearchCount } from "@/services/supabase";
 import useFetch from "@/services/useFetch";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -29,14 +30,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isTablet = SCREEN_WIDTH >= 768;
@@ -59,7 +53,8 @@ const Search = () => {
 
   // Fetch genres for filter
   const fetchGenresCallback = useCallback(() => fetchGenres(), []);
-  const { data: genres = [] } = useFetch(fetchGenresCallback);
+  const { data: genres = [], loading: genresLoading } =
+    useFetch(fetchGenresCallback);
 
   // Determine which API to call based on filter
   const fetchMoviesCallback = useCallback(() => {
@@ -153,7 +148,7 @@ const Search = () => {
     if (selectedFilter === "popular") return "Popular Movies";
     if (selectedFilter === "a-list") return "A-List Watchlist";
     if (selectedGenre) {
-      const genre = genres.find((g) => g.id === selectedGenre);
+      const genre = genres.find((g: Genre) => g.id === selectedGenre);
       return genre ? `${genre.name} Movies` : "Movies";
     }
     if (selectedYear) return `Movies from ${selectedYear}`;
@@ -195,46 +190,6 @@ const Search = () => {
     }
   }, [loadMovies, refetchGenreMovies]);
 
-  // Genre Button Component
-  const GenreButton = ({ genre }: { genre: Genre }) => {
-    const scale = useSharedValue(1);
-    const isSelected = selectedGenreObj?.id === genre.id;
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
-    const handlePressIn = () => {
-      scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-    };
-
-    const handlePressOut = () => {
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-    };
-
-    return (
-      <AnimatedTouchable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={() => handleGenreSelect(genre)}
-        style={animatedStyle}
-        className={`px-5 py-2.5 rounded-full mr-3 mb-3 ${
-          isSelected
-            ? "bg-accent-primary"
-            : "bg-bg-elevated border border-border-primary"
-        }`}
-      >
-        <Text
-          className={`text-sm font-semibold ${
-            isSelected ? "text-white" : "text-text-primary"
-          }`}
-        >
-          {genre.name}
-        </Text>
-      </AnimatedTouchable>
-    );
-  };
-
   const dataToRender = movies;
   const numColumns = isDesktop ? 4 : isTablet ? 3 : 2;
 
@@ -244,15 +199,10 @@ const Search = () => {
 
   return (
     <SafeAreaView className="flex-1" edges={["top"]}>
+      <GradientBackground />
       <View className="flex-1">
         {/* Header */}
-        <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
-          <Image
-            source={icons.logo}
-            className="w-14 h-12"
-            contentFit="contain"
-          />
-        </View>
+        <Header />
 
         {/* Search Bar - Centered and Shorter */}
         <View className="px-6 mb-4 items-center">
@@ -281,29 +231,12 @@ const Search = () => {
               Browse by Category
             </Text>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingRight: 24 }}
-          >
-            {genres.length > 0 ? (
-              genres.map((genre) => (
-                <GenreButton key={genre.id} genre={genre} />
-              ))
-            ) : (
-              <View className="flex-row gap-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Skeleton
-                    key={i}
-                    width={100}
-                    height={36}
-                    borderRadius={18}
-                    className="mr-3"
-                  />
-                ))}
-              </View>
-            )}
-          </ScrollView>
+          <CategoryPillsLoop
+            genres={genres}
+            loading={genresLoading}
+            onGenrePress={handleGenreSelect}
+            selectedGenreId={selectedGenreObj?.id || null}
+          />
         </View>
 
         {/* Filter Chips */}
@@ -556,7 +489,7 @@ const Search = () => {
                     Genres
                   </Text>
                   <View className="flex-row flex-wrap gap-3">
-                    {genres.map((genre) => (
+                    {genres.map((genre: Genre) => (
                       <TouchableOpacity
                         key={genre.id}
                         onPress={() => {

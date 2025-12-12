@@ -1,6 +1,13 @@
 import { icons } from "@/constants/icons";
+import { BlurView } from "expo-blur";
 import React, { useEffect, useRef, useState } from "react";
-import { Image, TextInput, TouchableWithoutFeedback, View } from "react-native";
+import {
+  Image,
+  Platform,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -9,6 +16,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 const AnimatedView = Animated.createAnimatedComponent(View);
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 interface Props {
   placeholder: string;
@@ -73,39 +81,110 @@ export const SearchBar: React.FC<Props> = ({
     borderWidth: borderWidth.value,
   }));
 
+  const blurStyle = {
+    backgroundColor:
+      Platform.OS === "web"
+        ? "rgba(255, 255, 255, 0.1)"
+        : "rgba(255, 255, 255, 0.1)",
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    ...(Platform.OS === "web" && {
+      backdropFilter: "blur(20px) saturate(180%)",
+      WebkitBackdropFilter: "blur(20px) saturate(180%)",
+    }),
+  };
+
   return (
     <TouchableWithoutFeedback onPress={onPress}>
       <AnimatedView
-        className={`
-          flex-row items-center 
-          bg-bg-elevated 
-          rounded-full px-5 py-3.5
-          border border-accent-primary/20
-          shadow-lg
-          ${className}
-        `}
-        style={animatedStyle}
+        style={[
+          animatedStyle,
+          {
+            overflow: "hidden",
+            borderRadius: 9999,
+          },
+        ]}
+        className={className}
       >
-        <Image
-          source={icons.search}
-          className="w-5 h-5 mr-3"
-          resizeMode="contain"
-          tintColor="#8B5CF6"
-        />
-        <TextInput
-          value={input}
-          onChangeText={setInput}
-          placeholder={placeholder}
-          placeholderTextColor="#71717A"
-          className="flex-1 text-text-primary text-base"
-          editable={!onPress}
-          autoFocus={autoFocus}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          returnKeyType="search"
-          accessibilityLabel="Search input"
-          accessibilityHint="Enter movie title to search"
-        />
+        {Platform.OS === "web" ? (
+          <View
+            style={[
+              blurStyle,
+              {
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+              },
+            ]}
+          >
+            <Image
+              source={icons.search}
+              style={{ width: 20, height: 20, marginRight: 12 }}
+              resizeMode="contain"
+              tintColor="#8B5CF6"
+            />
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder={placeholder}
+              placeholderTextColor="#71717A"
+              style={{
+                flex: 1,
+                color: "#F4F4F5",
+                fontSize: 16,
+              }}
+              editable={!onPress}
+              autoFocus={autoFocus}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              returnKeyType="search"
+              accessibilityLabel="Search input"
+              accessibilityHint="Enter movie title to search"
+            />
+          </View>
+        ) : (
+          <AnimatedBlurView
+            intensity={20}
+            tint="dark"
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 20,
+              paddingVertical: 14,
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              borderRadius: 9999,
+              borderWidth: 1,
+              borderColor: "rgba(139, 92, 246, 0.3)",
+            }}
+          >
+            <Image
+              source={icons.search}
+              style={{ width: 20, height: 20, marginRight: 12 }}
+              resizeMode="contain"
+              tintColor="#8B5CF6"
+            />
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder={placeholder}
+              placeholderTextColor="#71717A"
+              style={{
+                flex: 1,
+                color: "#F4F4F5",
+                fontSize: 16,
+              }}
+              editable={!onPress}
+              autoFocus={autoFocus}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              returnKeyType="search"
+              accessibilityLabel="Search input"
+              accessibilityHint="Enter movie title to search"
+            />
+          </AnimatedBlurView>
+        )}
       </AnimatedView>
     </TouchableWithoutFeedback>
   );

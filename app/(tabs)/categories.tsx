@@ -1,35 +1,28 @@
+import { CategoryPill } from "@/components/CategoryPill";
+import { GradientBackground } from "@/components/GradientBackground";
+import { Header } from "@/components/Header";
 import MovieCard from "@/components/MovieCard";
 import SearchBar from "@/components/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { icons } from "@/constants/icons";
 import { Genre } from "@/interfaces/interfaces";
 import { fetchGenres, fetchMoviesByGenre } from "@/services/api";
 import useFetch from "@/services/useFetch";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Dimensions,
   FlatList,
   RefreshControl,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isTablet = SCREEN_WIDTH >= 768;
 const isDesktop = SCREEN_WIDTH >= 1024;
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const Categories = () => {
   const router = useRouter();
@@ -76,56 +69,26 @@ const Categories = () => {
 
   const numColumns = isDesktop ? 4 : isTablet ? 3 : 2;
 
-  const GenreButton = ({ genre }: { genre: Genre }) => {
-    const scale = useSharedValue(1);
-    const isSelected = selectedGenre?.id === genre.id;
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
-    const handlePressIn = () => {
-      scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-    };
-
-    const handlePressOut = () => {
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-    };
-
+  // Hide on large screens
+  if (isDesktop) {
     return (
-      <AnimatedTouchable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={() => handleGenreSelect(genre)}
-        style={animatedStyle}
-        className={`px-6 py-3 rounded-full mr-3 mb-3 ${
-          isSelected
-            ? "bg-accent-primary"
-            : "bg-bg-elevated border border-border-primary"
-        }`}
-      >
-        <Text
-          className={`text-base font-semibold ${
-            isSelected ? "text-white" : "text-text-primary"
-          }`}
-        >
-          {genre.name}
-        </Text>
-      </AnimatedTouchable>
+      <SafeAreaView className="flex-1" edges={["top"]}>
+        <GradientBackground />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-text-primary text-xl font-bold text-center">
+            Categories page is only available on smaller screens
+          </Text>
+        </View>
+      </SafeAreaView>
     );
-  };
+  }
 
   return (
     <SafeAreaView className="flex-1" edges={["top"]}>
-      <View className="flex-1">
+      <GradientBackground />
+      <View className="flex-1" style={{ maxWidth: "100%", width: "100%" }}>
         {/* Header */}
-        <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
-          <Image
-            source={icons.logo}
-            className="w-14 h-12"
-            contentFit="contain"
-          />
-        </View>
+        <Header />
 
         {/* Search Bar - Centered and Shorter */}
         <View className="px-6 mb-4 items-center">
@@ -181,8 +144,14 @@ const Categories = () => {
               />
             ) : (
               <View className="flex-row flex-wrap">
-                {genres.map((genre) => (
-                  <GenreButton key={genre.id} genre={genre} />
+                {genres.map((genre: Genre) => (
+                  <CategoryPill
+                    key={genre.id}
+                    label={genre.name}
+                    onPress={() => handleGenreSelect(genre)}
+                    isSelected={selectedGenre?.id === genre.id}
+                    className="mr-3 mb-3"
+                  />
                 ))}
               </View>
             )}

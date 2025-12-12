@@ -1,9 +1,10 @@
 import { GradientBackground } from "@/components/GradientBackground";
+import { supabase } from "@/services/supabase";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import "./global.css";
 
 // Keep the splash screen visible while we fetch resources
@@ -15,6 +16,14 @@ export default function RootLayout() {
     const timer = setTimeout(() => {
       SplashScreen.hideAsync();
     }, 1000);
+
+    if (Platform.OS === "web") {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          // Auth state listeners in components will handle the update
+        }
+      });
+    }
 
     return () => clearTimeout(timer);
   }, []);

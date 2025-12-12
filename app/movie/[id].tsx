@@ -1,12 +1,15 @@
+import { BottomNavBar } from "@/components/BottomNavBar";
 import CastCard from "@/components/CastCard";
+import { GradientBackground } from "@/components/GradientBackground";
 import MovieCard from "@/components/MovieCard";
+import YouTubeTrailer from "@/components/YouTubeTrailer";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tag } from "@/components/ui/Tag";
 import { icons } from "@/constants/icons";
-import { MovieVideo } from "@/interfaces/interfaces";
+import { Movie, MovieVideo } from "@/interfaces/interfaces";
 import {
   fetchCollection,
   fetchMovieCredits,
@@ -17,6 +20,7 @@ import {
 import {
   getCurrentUser,
   getSavedMovies,
+  onAuthStateChange,
   toggleSaveMovie,
 } from "@/services/supabase";
 import useFetch from "@/services/useFetch";
@@ -76,6 +80,8 @@ const MovieDetails = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [isHoveringPoster, setIsHoveringPoster] = useState(false);
 
   const scrollY = useSharedValue(0);
   const headerOpacity = useSharedValue(0);
@@ -133,8 +139,10 @@ const MovieDetails = () => {
 
   // Get main trailer (first official trailer, or first trailer)
   const mainTrailer =
-    videos.find((v: MovieVideo) => v.official && v.type === "Trailer") ||
-    videos[0];
+    videos && videos.length > 0
+      ? videos.find((v: MovieVideo) => v.official && v.type === "Trailer") ||
+        videos[0]
+      : null;
 
   React.useEffect(() => {
     const checkSavedStatus = async () => {
@@ -144,14 +152,45 @@ const MovieDetails = () => {
           const savedMovies = await getSavedMovies();
           const saved = savedMovies.some((m) => m.movie_id === movie.id);
           setIsSaved(saved);
+        } else {
+          setIsSaved(false);
         }
       } catch (error) {
         console.error("Error checking saved status:", error);
+        setIsSaved(false);
       }
     };
     if (movie) {
       checkSavedStatus();
     }
+  }, [movie]);
+
+  // Listen to auth state changes to update saved status
+  React.useEffect(() => {
+    if (!movie) return;
+
+    const {
+      data: { subscription },
+    } = onAuthStateChange(async (user) => {
+      if (user && movie) {
+        try {
+          const savedMovies = await getSavedMovies();
+          const saved = savedMovies.some((m) => m.movie_id === movie.id);
+          setIsSaved(saved);
+        } catch (error) {
+          console.error(
+            "Error checking saved status after auth change:",
+            error
+          );
+        }
+      } else {
+        setIsSaved(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [movie]);
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -201,24 +240,28 @@ const MovieDetails = () => {
         if (result.error.includes("logged in")) {
           router.push("/(tabs)/profile");
         } else {
-          // Could show error toast here
           console.error("Save error:", result.error);
         }
+        setSaving(false);
         return;
       }
 
+      // Update saved state immediately for better UX
       setIsSaved(result.isSaved);
 
       // Success haptic
-      if (Platform.OS !== "web" && result.isSaved) {
+      if (Platform.OS !== "web") {
         await Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
+          result.isSaved
+            ? Haptics.NotificationFeedbackType.Success
+            : Haptics.NotificationFeedbackType.Warning
         );
       }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save movie";
       console.error("Error toggling save:", errorMessage);
+      // Don't update state on error
     } finally {
       setSaving(false);
     }
@@ -260,6 +303,7 @@ const MovieDetails = () => {
               source={icons.arrow}
               className="w-6 h-6 mr-2"
               tintColor="#fff"
+              style={{ transform: [{ scaleX: -1 }] }}
             />
             <Text className="text-text-primary text-base">Back</Text>
           </TouchableOpacity>
@@ -284,6 +328,7 @@ const MovieDetails = () => {
 
   return (
     <View className="flex-1">
+      <GradientBackground />
       {/* Animated Header */}
       <Animated.View
         style={headerAnimatedStyle}
@@ -294,30 +339,41 @@ const MovieDetails = () => {
             <TouchableOpacity
               onPress={router.back}
               className="flex-row items-center"
+              activeOpacity={0.7}
             >
               <Image
                 source={icons.arrow}
                 className="w-6 h-6 mr-2"
-                tintColor="#fff"
+                tintColor="#FFFFFF"
+                style={{ transform: [{ scaleX: -1 }] }}
               />
-              <Text className="text-text-primary text-base font-medium">
-                Back
-              </Text>
+              <Text className="text-white text-base font-medium">Back</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSaveMovie}
               disabled={saving}
-              className="p-2"
+              className="p-1 rounded-full bg-black/20 backdrop-blur-sm"
+              activeOpacity={0.7}
+              style={{
+                shadowColor: isSaved ? "#8B5CF6" : "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: isSaved ? 0.3 : 0.1,
+                shadowRadius: 2,
+                elevation: 2,
+              }}
             >
               <Image
                 source={isSaved ? icons.saved : icons.save}
-                className="w-6 h-6"
-                tintColor={isSaved ? "#8B5CF6" : "#E4E4E7"}
+                style={{ width: 15, height: 15 }}
+                tintColor={isSaved ? "#8B5CF6" : "#FFFFFF"}
               />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
       </Animated.View>
+
+      {/* Bottom NavBar */}
+      <BottomNavBar />
 
       <AnimatedScrollView
         onScroll={scrollHandler}
@@ -326,18 +382,62 @@ const MovieDetails = () => {
         className="flex-1"
       >
         {/* Hero Section with Backdrop */}
-        <View className="relative" style={{ height: HERO_HEIGHT }}>
-          <AnimatedImage
-            source={{ uri: backdropUrl }}
-            className="absolute inset-0 w-full h-full"
-            contentFit="cover"
-            style={backdropAnimatedStyle}
-            onLoad={() => setImageLoading(false)}
-          />
+        <View
+          className="relative"
+          style={{ height: HERO_HEIGHT }}
+          {...(Platform.OS === "web" && {
+            // @ts-ignore - web-only props
+            onMouseEnter: () => {
+              if (mainTrailer) {
+                setIsHoveringPoster(true);
+                setTimeout(() => setShowTrailer(true), 300);
+              }
+            },
+            // @ts-ignore - web-only props
+            onMouseLeave: () => {
+              setIsHoveringPoster(false);
+              setTimeout(() => setShowTrailer(false), 200);
+            },
+          })}
+        >
+          {/* Trailer overlay - shows on hover */}
+          {mainTrailer && showTrailer && isHoveringPoster ? (
+            <View className="absolute inset-0 z-10">
+              <YouTubeTrailer
+                videoId={mainTrailer.key}
+                autoPlay={true}
+                muted={true}
+                controls={true}
+                loop={true}
+                className="w-full h-full rounded-none"
+                onHover={(hovering) => {
+                  if (!hovering && Platform.OS === "web") {
+                    setIsHoveringPoster(false);
+                    setTimeout(() => setShowTrailer(false), 200);
+                  }
+                }}
+              />
+            </View>
+          ) : (
+            <>
+              <AnimatedImage
+                source={{ uri: backdropUrl }}
+                className="absolute inset-0 w-full h-full"
+                contentFit="cover"
+                style={backdropAnimatedStyle}
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  console.warn("Failed to load backdrop image");
+                  setImageLoading(false);
+                }}
+                transition={200}
+              />
 
-          {/* Enhanced Gradient Overlay */}
-          <View className="absolute inset-0 bg-black/10" />
-          <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/65" />
+              {/* Enhanced Gradient Overlay */}
+              <View className="absolute inset-0 bg-black/10" />
+              <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/65" />
+            </>
+          )}
 
           {/* Content Overlay */}
           <SafeAreaView
@@ -347,7 +447,7 @@ const MovieDetails = () => {
             <View className="flex-row items-end gap-6">
               {/* Poster - Enhanced */}
               <Animated.View
-                className="w-32 h-48 md:w-40 md:h-60 rounded-xl overflow-hidden shadow-2xl"
+                className="w-32 h-48 md:w-40 md:h-60 rounded-xl overflow-hidden shadow-2xl relative"
                 style={{
                   shadowColor: "#8B5CF6",
                   shadowOffset: { width: 0, height: 8 },
@@ -362,6 +462,24 @@ const MovieDetails = () => {
                   contentFit="cover"
                   transition={300}
                 />
+                {/* Play overlay hint on hover */}
+                {mainTrailer &&
+                  isHoveringPoster &&
+                  !showTrailer &&
+                  Platform.OS === "web" && (
+                    <View className="absolute inset-0 bg-black/50 items-center justify-center">
+                      <View className="w-16 h-16 rounded-full bg-accent-primary/80 items-center justify-center">
+                        <Image
+                          source={icons.play}
+                          className="w-8 h-8 ml-1"
+                          tintColor="#FFFFFF"
+                        />
+                      </View>
+                      <Text className="text-white text-xs font-semibold mt-2">
+                        Hover to play
+                      </Text>
+                    </View>
+                  )}
               </Animated.View>
 
               {/* Title and Info - Enhanced */}
@@ -420,54 +538,42 @@ const MovieDetails = () => {
         </View>
 
         {/* Details Section */}
-        <View className="px-6 pt-8 pb-32">
+        <View className="px-6 pt-8 pb-40">
           {/* Action Buttons - Enhanced */}
-          <View className="flex-row gap-3 mb-10">
-            <Button
-              title={isSaved ? "Saved to Watchlist" : "Add to Watchlist"}
-              onPress={handleSaveMovie}
-              variant={isSaved ? "secondary" : "primary"}
-              size="lg"
-              loading={saving}
-              icon={
-                <Image
-                  source={isSaved ? icons.saved : icons.save}
-                  className="w-5 h-5"
-                  tintColor={isSaved ? "#8B5CF6" : "#fff"}
+          <View className="items-center mb-10">
+            <View className="flex-row gap-3 w-full max-w-md justify-center">
+              <Button
+                title={isSaved ? "Saved to Watchlist" : "Add to Watchlist"}
+                onPress={handleSaveMovie}
+                variant={isSaved ? "outline" : "primary"}
+                size="lg"
+                loading={saving}
+                disabled={saving}
+                icon={
+                  <Image
+                    source={isSaved ? icons.saved : icons.save}
+                    style={{ width: 15, height: 15 }}
+                    tintColor={isSaved ? "#8B5CF6" : "#FFFFFF"}
+                  />
+                }
+                className="flex-1 max-w-xs"
+              />
+              {movie.homepage && (
+                <Button
+                  title="Website"
+                  onPress={() => Linking.openURL(movie.homepage!)}
+                  variant="outline"
+                  size="lg"
+                  icon={
+                    <Image
+                      source={icons.arrow}
+                      className="w-5 h-5 rotate-[-45deg]"
+                      tintColor="#8B5CF6"
+                    />
+                  }
                 />
-              }
-              className="flex-1"
-            />
-            {mainTrailer && (
-              <Button
-                title="Watch Trailer"
-                onPress={handleWatchTrailer}
-                variant="outline"
-                size="lg"
-                icon={
-                  <Image
-                    source={icons.play}
-                    className="w-5 h-5"
-                    tintColor="#8B5CF6"
-                  />
-                }
-              />
-            )}
-            {movie.homepage && (
-              <Button
-                title="Website"
-                onPress={() => Linking.openURL(movie.homepage!)}
-                variant="outline"
-                size="lg"
-                icon={
-                  <Image
-                    source={icons.arrow}
-                    className="w-5 h-5 rotate-[-45deg]"
-                    tintColor="#8B5CF6"
-                  />
-                }
-              />
-            )}
+              )}
+            </View>
           </View>
 
           {/* Overview - Enhanced */}
@@ -487,7 +593,7 @@ const MovieDetails = () => {
             <Text className="text-text-primary text-2xl font-bold mb-6">
               Details
             </Text>
-            <View className="flex-row flex-wrap gap-6">
+            <View className="flex-row flex-wrap gap-6 mb-4">
               <View className="flex-1 min-w-[140px]">
                 <MovieInfo
                   label="Release Date"
@@ -622,8 +728,50 @@ const MovieDetails = () => {
               />
             </View>
           )}
+
+          {/* Trailers & Videos Section */}
+          {videos && videos.length > 0 && (
+            <View className="mb-10">
+              <Text className="text-text-primary text-2xl font-bold mb-6">
+                Trailers & Videos
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 24 }}
+              >
+                {videos.slice(0, 5).map((video: MovieVideo) => (
+                  <View
+                    key={video.id}
+                    className="mr-4"
+                    style={{ width: 320, height: 180 }}
+                  >
+                    <YouTubeTrailer
+                      videoId={video.key}
+                      autoPlay={false}
+                      muted={true}
+                      controls={true}
+                      loop={false}
+                      className="w-full h-full rounded-xl overflow-hidden"
+                    />
+                    <Text
+                      className="text-text-primary text-sm font-semibold mt-2"
+                      numberOfLines={1}
+                    >
+                      {video.name}
+                    </Text>
+                    <Text className="text-text-tertiary text-xs">
+                      {video.type}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
       </AnimatedScrollView>
+      {/* Bottom NavBar */}
+      <BottomNavBar />
     </View>
   );
 };

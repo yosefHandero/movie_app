@@ -1,3 +1,5 @@
+import { GradientBackground } from "@/components/GradientBackground";
+import { Header } from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -8,10 +10,11 @@ import {
   deleteSavedMovie,
   getCurrentUser,
   getSavedMovies,
+  onAuthStateChange,
 } from "@/services/supabase";
 import { Image as ExpoImage } from "expo-image";
-import { Link, router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { Link, router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -19,6 +22,7 @@ import {
   Pressable,
   RefreshControl,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import Animated, {
@@ -72,6 +76,37 @@ const SavedTab = () => {
     loadSaved();
   }, [loadSaved]);
 
+  // Listen to auth state changes (e.g., when user logs in via magic link)
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = onAuthStateChange((user) => {
+      if (user) {
+        // User logged in, refresh saved movies
+        loadSaved();
+      } else {
+        // User logged out, clear saved movies
+        setSaved([]);
+        setIsLoggedIn(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [loadSaved]);
+
+  // Refresh user state when page comes into focus (e.g., after login)
+  useFocusEffect(
+    useCallback(() => {
+      // Small delay to ensure auth state is updated
+      const timer = setTimeout(() => {
+        loadSaved();
+      }, 100);
+      return () => clearTimeout(timer);
+    }, [loadSaved])
+  );
+
   const handleUnsave = async (docId: string, title: string): Promise<void> => {
     try {
       await deleteSavedMovie(docId);
@@ -82,6 +117,8 @@ const SavedTab = () => {
       console.error("Error deleting movie:", errorMessage);
     }
   };
+
+  const numColumns = isDesktop ? 4 : isTablet ? 3 : 2;
 
   const PosterCard = ({ item }: { item: SavedMovie }) => {
     const scale = useSharedValue(1);
@@ -98,10 +135,19 @@ const SavedTab = () => {
       scale.value = withSpring(1, { damping: 15, stiffness: 300 });
     };
 
-    const cardWidth = isDesktop ? "22%" : isTablet ? "30%" : "45%";
+    const cardWidthPercent = isDesktop
+      ? 100 / numColumns - 2
+      : isTablet
+      ? 100 / numColumns - 3
+      : 100 / numColumns - 4;
 
     return (
-      <View className={`${cardWidth} mb-6`}>
+      <View
+        style={{
+          width: `${cardWidthPercent}%`,
+          marginBottom: 20,
+        }}
+      >
         <AnimatedPressable
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
@@ -109,27 +155,40 @@ const SavedTab = () => {
         >
           <Link href={`/movie/${item.movie_id}`} asChild>
             <Pressable>
-              <View className="relative rounded-xl overflow-hidden">
+              <View className="relative rounded-xl overflow-hidden mb-2">
                 <ExpoImage
                   source={{ uri: item.poster_url }}
-                  className="w-full h-64 rounded-xl"
+                  className="w-full rounded-xl"
+                  style={{ aspectRatio: 2 / 3, minHeight: 240 }}
                   contentFit="cover"
+                  transition={200}
                 />
-                <AnimatedPressable
-                  onPress={() => handleUnsave(item.$id, item.title)}
-                  className="absolute top-2 right-2 bg-bg-elevated/90 backdrop-blur-sm p-2 rounded-full"
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleUnsave(item.$id, item.title);
+                  }}
+                  className="absolute top-2 right-2 bg-black/70 backdrop-blur-md p-2.5 rounded-full"
+                  activeOpacity={0.8}
+                  style={{
+                    shadowColor: "#8B5CF6",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.5,
+                    shadowRadius: 6,
+                    elevation: 6,
+                  }}
                 >
                   <Image
                     source={icons.saved}
-                    style={{ width: 18, height: 18 }}
+                    style={{ width: 20, height: 20 }}
                     tintColor="#8B5CF6"
                   />
-                </AnimatedPressable>
+                </TouchableOpacity>
               </View>
             </Pressable>
           </Link>
           <Text
-            className="text-text-primary text-sm font-semibold mt-2"
+            className="text-text-primary text-sm font-semibold mt-1"
             numberOfLines={2}
           >
             {item.title}
@@ -142,14 +201,9 @@ const SavedTab = () => {
   if (!isLoggedIn && !loading) {
     return (
       <SafeAreaView className="flex-1" edges={["top"]}>
+        <GradientBackground />
         <View className="px-6 pt-6">
-          <View className="flex-row items-center justify-center mb-8">
-            <ExpoImage
-              source={icons.logo}
-              className="w-12 h-10"
-              contentFit="contain"
-            />
-          </View>
+          <Header />
           <EmptyState
             icon={
               <Image
@@ -174,19 +228,12 @@ const SavedTab = () => {
     );
   }
 
-  const numColumns = isDesktop ? 4 : isTablet ? 3 : 2;
-
   return (
     <SafeAreaView className="flex-1" edges={["top"]}>
+      <GradientBackground />
       <View className="flex-1">
         {/* Header */}
-        <View className="px-6 pt-6 pb-4 flex-row items-center justify-center">
-          <ExpoImage
-            source={icons.logo}
-            className="w-14 h-12"
-            contentFit="contain"
-          />
-        </View>
+        <Header />
 
         {/* Search Bar - Centered and Shorter */}
         <View className="px-6 mb-4 items-center">
@@ -233,52 +280,60 @@ const SavedTab = () => {
             action={
               <Button
                 title="Browse Movies"
-                onPress={() => router.push("/(tabs)/")}
+                onPress={() => router.push("/")}
                 variant="primary"
                 size="lg"
               />
             }
           />
         ) : (
-          <FlatList
-            data={saved}
-            keyExtractor={(item) => item.$id}
-            renderItem={({ item }) => <PosterCard item={item} />}
-            numColumns={numColumns}
-            columnWrapperStyle={
-              numColumns > 1
-                ? {
-                    justifyContent: "flex-start",
-                    gap: isDesktop ? 20 : 16,
-                    paddingHorizontal: 24,
-                    marginBottom: isDesktop ? 20 : 16,
-                  }
-                : undefined
-            }
-            contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="#8B5CF6"
-                colors={["#8B5CF6"]}
-              />
-            }
-            ListHeaderComponent={
-              saved.length > 0 ? (
-                <View className="px-6 mb-6">
-                  <Text className="text-text-primary text-3xl font-bold mb-2">
-                    My Watchlist
-                  </Text>
-                  <Text className="text-text-secondary text-base">
-                    {saved.length} {saved.length === 1 ? "movie" : "movies"}{" "}
-                    saved
-                  </Text>
-                </View>
-              ) : null
-            }
-            showsVerticalScrollIndicator={false}
-          />
+          <View className="flex-1">
+            <FlatList
+              data={saved}
+              keyExtractor={(item) => item.$id}
+              renderItem={({ item }) => <PosterCard item={item} />}
+              numColumns={numColumns}
+              columnWrapperStyle={
+                numColumns > 1
+                  ? {
+                      justifyContent: "flex-start",
+                      paddingHorizontal: 24,
+                      gap: isDesktop ? 20 : isTablet ? 16 : 12,
+                    }
+                  : undefined
+              }
+              contentContainerStyle={{
+                paddingBottom: 120,
+                paddingTop: 8,
+                paddingHorizontal:
+                  numColumns === 2 || numColumns === 3 || numColumns === 4
+                    ? 0
+                    : 24,
+              }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor="#8B5CF6"
+                  colors={["#8B5CF6"]}
+                />
+              }
+              ListHeaderComponent={
+                saved.length > 0 ? (
+                  <View className="px-6 mb-6">
+                    <Text className="text-text-primary text-3xl font-bold mb-2">
+                      My Watchlist
+                    </Text>
+                    <Text className="text-text-secondary text-base">
+                      {saved.length} {saved.length === 1 ? "movie" : "movies"}{" "}
+                      saved
+                    </Text>
+                  </View>
+                ) : null
+              }
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
         )}
       </View>
     </SafeAreaView>
