@@ -115,6 +115,7 @@ export const BottomNavBar: React.FC = () => {
             left: 20,
             right: 20,
             height: 76,
+            zIndex: 1000,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-around",
@@ -147,6 +148,7 @@ export const BottomNavBar: React.FC = () => {
         left: 20,
         right: 20,
         height: 76,
+        zIndex: 1000,
       }}
     >
       <BlurView

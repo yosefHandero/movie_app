@@ -7,6 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -60,6 +61,8 @@ function TabIcon({
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tabs
       screenOptions={{
@@ -76,10 +79,12 @@ export default function TabsLayout() {
               ? "rgba(165, 165, 169, 0.7)"
               : "rgba(165, 165, 169, 0.85)", // Semi-transparent for glass effect
           borderRadius: 24,
-          marginHorizontal: 20,
-          marginBottom: Platform.OS === "web" ? 20 : 24,
           height: 76, // Increased height to accommodate text
           position: "absolute",
+          bottom: Platform.OS === "web" ? 20 : Math.max(insets.bottom, 24),
+          left: 20,
+          right: 20,
+          zIndex: 1000,
           overflow: "hidden",
           borderWidth: 1,
           borderColor: "rgba(255, 255, 255, 0.3)", // Light border for glass effect
@@ -88,6 +93,7 @@ export default function TabsLayout() {
           shadowOpacity: 0.3,
           shadowRadius: 20,
           elevation: 12,
+          pointerEvents: "box-none",
           // Web-specific backdrop blur
           ...(Platform.OS === "web" && {
             // @ts-ignore - web-only CSS
