@@ -151,11 +151,21 @@ export const onAuthStateChange = (callback: (user: any) => void) => {
 
 export const sendMagicLink = async (email: string) => {
   try {
+    // Get the current origin URL for redirect (works for both web and mobile)
+    let redirectUrl: string | undefined;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      // Use current origin + /profile for web deployments
+      redirectUrl = `${window.location.origin}/profile`;
+    } else {
+      // For mobile, use the app scheme or leave undefined
+      redirectUrl = undefined;
+    }
+
     // signInWithOtp sends OTP code if email template uses {{ .Token }}, or magic link if uses {{ .ConfirmationURL }}
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: undefined, // No redirect for mobile
+        emailRedirectTo: redirectUrl,
         shouldCreateUser: true, // Create user if doesn't exist
       },
     });

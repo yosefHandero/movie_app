@@ -18,9 +18,20 @@ export default function RootLayout() {
     }, 1000);
 
     if (Platform.OS === "web") {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      // Handle auth redirects from magic links
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          console.error("Session error:", error);
+        }
         if (session) {
           // Auth state listeners in components will handle the update
+          // Clean up URL hash if present (from magic link redirect)
+          if (typeof window !== "undefined" && window.location.hash) {
+            // Remove auth tokens from URL after processing
+            const url = new URL(window.location.href);
+            url.hash = "";
+            window.history.replaceState({}, "", url.toString());
+          }
         }
       });
     }

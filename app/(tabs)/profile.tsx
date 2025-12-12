@@ -163,8 +163,9 @@ const Profile = () => {
       return;
     }
 
-    if (otp.length !== 6) {
-      setError("Verification code must be 6 digits");
+    // Accept codes between 6-8 digits (Supabase can send different lengths)
+    if (otp.length < 6 || otp.length > 8) {
+      setError("Verification code must be between 6-8 digits");
       return;
     }
 
