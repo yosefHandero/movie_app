@@ -55,7 +55,7 @@ export const Tag: React.FC<TagProps> = ({
     >
       <Text
         className={`text-sm font-medium ${
-          selected ? "text-white" : "text-text-secondary"
+          selected ? "text-black" : "text-text-secondary"
         }`}
       >
         {label}

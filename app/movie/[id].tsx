@@ -1,6 +1,14 @@
+import {
+  AwkwardMeter,
+  MovieInsightBadges,
+  SkipIf,
+  WatchOptionsCollapse,
+  WhyWatchThis,
+} from "@/components/insights";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import CastCard from "@/components/CastCard";
 import { GradientBackground } from "@/components/GradientBackground";
+import { MovieLogo } from "@/components/MovieLogo";
 import MovieCard from "@/components/MovieCard";
 import YouTubeTrailer from "@/components/YouTubeTrailer";
 import { Badge } from "@/components/ui/Badge";
@@ -12,22 +20,22 @@ import { icons } from "@/constants/icons";
 import { Movie, MovieVideo } from "@/interfaces/interfaces";
 import {
   fetchCollection,
+  fetchMovieCertification,
   fetchMovieCredits,
   fetchMovieDetails,
+  fetchMovieKeywords,
   fetchMovieVideos,
   fetchSimilarMovies,
+  fetchWatchProviders,
 } from "@/services/api";
-import {
-  getCurrentUser,
-  getSavedMovies,
-  onAuthStateChange,
-  toggleSaveMovie,
-} from "@/services/supabase";
 import useFetch from "@/services/useFetch";
-import * as Haptics from "expo-haptics";
-import { Image as ExpoImage } from "expo-image";
+import {
+  getFunGenreLabel,
+  getMovieInsights,
+} from "@/utils/movieInsights";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { Image as ExpoImage } from "expo-image";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -53,8 +61,8 @@ const HEADER_HEIGHT = 60;
 // Responsive hero height for web and mobile
 const HERO_HEIGHT =
   Platform.OS === "web"
-    ? Math.min(600, SCREEN_HEIGHT * 0.7)
-    : Math.min(500, SCREEN_HEIGHT * 0.6);
+    ? Math.min(480, SCREEN_HEIGHT * 0.58)
+    : Math.min(420, SCREEN_HEIGHT * 0.52);
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 const AnimatedImage = Animated.createAnimatedComponent(ExpoImage);
@@ -77,8 +85,6 @@ const MovieDetails = () => {
   const params = useLocalSearchParams();
   const idParam = params.id;
   const movieId = Array.isArray(idParam) ? idParam[0] : idParam;
-  const [isSaved, setIsSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
   const [showTrailer, setShowTrailer] = useState(false);
   const [isHoveringPoster, setIsHoveringPoster] = useState(false);
@@ -137,61 +143,46 @@ const MovieDetails = () => {
 
   const { data: collection } = useFetch(fetchCollectionCallback);
 
+  const fetchWatchProvidersCallback = useCallback(() => {
+    if (!movieId || isNaN(Number(movieId))) {
+      return Promise.resolve(null);
+    }
+    return fetchWatchProviders(movieId, "US");
+  }, [movieId]);
+
+  const { data: watchProviders, loading: watchProvidersLoading } = useFetch(
+    fetchWatchProvidersCallback
+  );
+
+  const fetchCertificationCallback = useCallback(() => {
+    if (!movieId || isNaN(Number(movieId))) {
+      return Promise.resolve(null);
+    }
+    return fetchMovieCertification(movieId, "US");
+  }, [movieId]);
+
+  const { data: certification } = useFetch(fetchCertificationCallback);
+
+  const fetchKeywordsCallback = useCallback(() => {
+    if (!movieId || isNaN(Number(movieId))) {
+      return Promise.resolve([]);
+    }
+    return fetchMovieKeywords(movieId);
+  }, [movieId]);
+
+  const { data: keywords = [] } = useFetch(fetchKeywordsCallback);
+
+  const movieInsights = useMemo(() => {
+    if (!movie) return null;
+    return getMovieInsights(movie, certification ?? null, keywords);
+  }, [movie, certification, keywords]);
+
   // Get main trailer (first official trailer, or first trailer)
   const mainTrailer =
     videos && videos.length > 0
       ? videos.find((v: MovieVideo) => v.official && v.type === "Trailer") ||
         videos[0]
       : null;
-
-  React.useEffect(() => {
-    const checkSavedStatus = async () => {
-      try {
-        const user = await getCurrentUser();
-        if (user && movie) {
-          const savedMovies = await getSavedMovies();
-          const saved = savedMovies.some((m) => m.movie_id === movie.id);
-          setIsSaved(saved);
-        } else {
-          setIsSaved(false);
-        }
-      } catch (error) {
-        console.error("Error checking saved status:", error);
-        setIsSaved(false);
-      }
-    };
-    if (movie) {
-      checkSavedStatus();
-    }
-  }, [movie]);
-
-  // Listen to auth state changes to update saved status
-  React.useEffect(() => {
-    if (!movie) return;
-
-    const {
-      data: { subscription },
-    } = onAuthStateChange(async (user) => {
-      if (user && movie) {
-        try {
-          const savedMovies = await getSavedMovies();
-          const saved = savedMovies.some((m) => m.movie_id === movie.id);
-          setIsSaved(saved);
-        } catch (error) {
-          console.error(
-            "Error checking saved status after auth change:",
-            error
-          );
-        }
-      } else {
-        setIsSaved(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [movie]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -219,53 +210,6 @@ const MovieDetails = () => {
     );
     return { transform: [{ scale }] };
   });
-
-  const handleSaveMovie = async () => {
-    if (!movie || saving) return;
-    setSaving(true);
-
-    // Haptic feedback
-    if (Platform.OS !== "web") {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-
-    try {
-      const result = await toggleSaveMovie({
-        id: movie.id,
-        title: movie.title,
-        poster_path: movie.poster_path || "",
-      });
-
-      if (result.error) {
-        if (result.error.includes("logged in")) {
-          router.push("/(tabs)/profile");
-        } else {
-          console.error("Save error:", result.error);
-        }
-        setSaving(false);
-        return;
-      }
-
-      // Update saved state immediately for better UX
-      setIsSaved(result.isSaved);
-
-      // Success haptic
-      if (Platform.OS !== "web") {
-        await Haptics.notificationAsync(
-          result.isSaved
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Warning
-        );
-      }
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to save movie";
-      console.error("Error toggling save:", errorMessage);
-      // Don't update state on error
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleWatchTrailer = () => {
     if (mainTrailer) {
@@ -332,7 +276,7 @@ const MovieDetails = () => {
       {/* Animated Header */}
       <Animated.View
         style={headerAnimatedStyle}
-        className="absolute top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-lg"
+        className="absolute top-0 left-0 right-0 z-50 bg-black/95"
       >
         <SafeAreaView edges={["top"]}>
           <View className="flex-row items-center justify-between px-6 py-4">
@@ -349,31 +293,16 @@ const MovieDetails = () => {
               />
               <Text className="text-white text-base font-medium">Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSaveMovie}
-              disabled={saving}
-              className="p-1 rounded-full bg-black/20 backdrop-blur-sm"
-              activeOpacity={0.7}
-              style={{
-                shadowColor: isSaved ? "#8B5CF6" : "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: isSaved ? 0.3 : 0.1,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
+            <View
+              pointerEvents="box-none"
+              className="absolute left-0 right-0 items-center"
             >
-              <Image
-                source={isSaved ? icons.saved : icons.save}
-                style={{ width: 15, height: 15 }}
-                tintColor={isSaved ? "#8B5CF6" : "#FFFFFF"}
-              />
-            </TouchableOpacity>
+              <MovieLogo size="small" />
+            </View>
+            <View className="w-16" />
           </View>
         </SafeAreaView>
       </Animated.View>
-
-      {/* Bottom NavBar */}
-      <BottomNavBar />
 
       <AnimatedScrollView
         onScroll={scrollHandler}
@@ -433,7 +362,6 @@ const MovieDetails = () => {
                 transition={200}
               />
 
-              {/* Enhanced Gradient Overlay */}
               <View className="absolute inset-0 bg-black/10" />
               <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/65" />
             </>
@@ -493,7 +421,7 @@ const MovieDetails = () => {
                 <View className="flex-row items-center gap-3 mb-4 flex-wrap">
                   {movie.vote_average > 0 && (
                     <Badge
-                      label={`${Math.round(movie.vote_average * 10) / 10}★`}
+                      label={`${Math.round(movie.vote_average * 10) / 10}/10`}
                       variant="accent"
                       size="md"
                     />
@@ -510,10 +438,27 @@ const MovieDetails = () => {
                   )}
                 </View>
                 <View className="flex-row gap-2 flex-wrap mb-4">
-                  {movie.genres?.slice(0, 4).map((genre: any) => (
-                    <Tag key={genre.id} label={genre.name} />
-                  ))}
+                  {movie.genres?.slice(0, 4).map((genre: any) => {
+                    const fun = getFunGenreLabel(genre.name);
+                    return (
+                      <Tag key={genre.id} label={fun.label} />
+                    );
+                  })}
                 </View>
+                {movieInsights && (
+                  <View className="gap-2 mb-4 items-start">
+                    <MovieInsightBadges
+                      movie={movie}
+                      certification={certification ?? null}
+                      keywords={keywords}
+                      awkwardMeter={movieInsights.awkwardMeter}
+                      showAwkwardMeter={false}
+                    />
+                    <WhyWatchThis text={movieInsights.whyWatch} />
+                    <SkipIf text={movieInsights.skipIf} />
+                    <AwkwardMeter result={movieInsights.awkwardMeter} />
+                  </View>
+                )}
                 {/* Quick Actions */}
                 {mainTrailer && (
                   <View className="flex-row gap-3 mt-2">
@@ -539,26 +484,12 @@ const MovieDetails = () => {
 
         {/* Details Section */}
         <View className="px-6 pt-8 pb-40">
+          <View className="flex-col lg:flex-row lg:gap-8">
+            <View className="flex-1">
           {/* Action Buttons - Enhanced */}
+          {movie.homepage && (
           <View className="items-center mb-10">
             <View className="flex-row gap-3 w-full max-w-md justify-center">
-              <Button
-                title={isSaved ? "Saved to Watchlist" : "Add to Watchlist"}
-                onPress={handleSaveMovie}
-                variant={isSaved ? "outline" : "primary"}
-                size="lg"
-                loading={saving}
-                disabled={saving}
-                icon={
-                  <Image
-                    source={isSaved ? icons.saved : icons.save}
-                    style={{ width: 15, height: 15 }}
-                    tintColor={isSaved ? "#8B5CF6" : "#FFFFFF"}
-                  />
-                }
-                className="flex-1 max-w-xs"
-              />
-              {movie.homepage && (
                 <Button
                   title="Website"
                   onPress={() => Linking.openURL(movie.homepage!)}
@@ -572,9 +503,9 @@ const MovieDetails = () => {
                     />
                   }
                 />
-              )}
             </View>
           </View>
+          )}
 
           {/* Overview - Enhanced */}
           {movie.overview && (
@@ -639,12 +570,23 @@ const MovieDetails = () => {
                 Genres
               </Text>
               <View className="flex-row flex-wrap gap-3">
-                {movie.genres.map((genre: any) => (
-                  <Tag key={genre.id} label={genre.name} />
-                ))}
+                {movie.genres.map((genre: any) => {
+                  const fun = getFunGenreLabel(genre.name);
+                  return <Tag key={genre.id} label={fun.label} />;
+                })}
               </View>
             </View>
           )}
+            </View>
+
+            <View className="w-full lg:w-80 lg:shrink-0 mb-10">
+              <WatchOptionsCollapse
+                providers={watchProviders}
+                loading={watchProvidersLoading}
+                region="US"
+              />
+            </View>
+          </View>
 
           {/* Production Companies - Enhanced */}
           {movie.production_companies &&

@@ -16,8 +16,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Responsive hero height for web and mobile
 const HERO_HEIGHT =
   Platform.OS === "web"
-    ? Math.min(600, SCREEN_HEIGHT * 0.7)
-    : Math.min(500, SCREEN_HEIGHT * 0.6);
+    ? Math.min(420, SCREEN_HEIGHT * 0.5)
+    : Math.min(360, SCREEN_HEIGHT * 0.45);
 
 interface HeroBannerProps {
   movie: Movie | null;
@@ -60,7 +60,23 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
     : "https://placehold.co/1280x720/1a1a1a/FFFFFF.png";
 
   return (
-    <View className="relative overflow-hidden" style={{ height: HERO_HEIGHT }}>
+    <View
+      className="relative overflow-hidden mx-6 rounded-2xl"
+      style={{
+        height: HERO_HEIGHT,
+        backgroundColor: "rgba(34, 20, 56, 0.65)",
+        borderWidth: 1,
+        borderColor: "rgba(167, 139, 250, 0.22)",
+        ...(Platform.OS === "web"
+          ? {
+              // @ts-ignore web-only
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 24px rgba(139,92,246,0.15)",
+            }
+          : {}),
+      }}
+    >
       {/* Backdrop Image */}
       <Animated.View style={imageAnimatedStyle} className="absolute inset-0">
         <ExpoImage
@@ -72,21 +88,20 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
         />
       </Animated.View>
 
-      {/* Gradient Overlay - Enhanced */}
       <View className="absolute inset-0 bg-black/10" />
-      <View className="absolute bottom-0 left-0 right-0 h-3/4 bg-black/65" />
+      <View className="absolute bottom-0 left-0 right-0 h-2/3 bg-black/70" />
 
       {/* Content */}
       <Animated.View
         style={contentAnimatedStyle}
-        className="absolute bottom-0 left-0 right-0 px-6 pb-12"
+        className="absolute bottom-0 left-0 right-0 px-5 pb-6"
       >
         <View className="max-w-2xl">
           {/* Rating and Year */}
-          <View className="flex-row items-center gap-3 mb-3">
+          <View className="flex-row items-center gap-3 mb-2">
             {movie.vote_average > 0 && (
               <Badge
-                label={`${Math.round(movie.vote_average / 2)}★`}
+                label={`${Math.round(movie.vote_average / 2)}/5`}
                 variant="accent"
                 size="md"
               />
@@ -100,7 +115,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
           {/* Title */}
           <Text
-            className="text-white text-4xl md:text-5xl font-bold mb-4 leading-tight"
+            className="text-white text-3xl md:text-4xl font-bold mb-3 leading-tight"
             numberOfLines={2}
           >
             {movie.title}
@@ -109,8 +124,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Overview */}
           {movie.overview && (
             <Text
-              className="text-text-secondary text-base mb-6 leading-6"
-              numberOfLines={3}
+              className="text-text-secondary text-sm md:text-base mb-5 leading-6"
+              numberOfLines={2}
             >
               {movie.overview}
             </Text>

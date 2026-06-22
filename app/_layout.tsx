@@ -1,10 +1,9 @@
 import { GradientBackground } from "@/components/GradientBackground";
-import { supabase } from "@/services/supabase";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import "./global.css";
 
 // Keep the splash screen visible while we fetch resources
@@ -17,37 +16,18 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }, 1000);
 
-    if (Platform.OS === "web") {
-      // Handle auth redirects from magic links
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        if (error) {
-          console.error("Session error:", error);
-        }
-        if (session) {
-          // Auth state listeners in components will handle the update
-          // Clean up URL hash if present (from magic link redirect)
-          if (typeof window !== "undefined" && window.location.hash) {
-            // Remove auth tokens from URL after processing
-            const url = new URL(window.location.href);
-            url.hash = "";
-            window.history.replaceState({}, "", url.toString());
-          }
-        }
-      });
-    }
-
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <>
-      <StatusBar style="light" translucent={false} backgroundColor="#3C1B58" />
-      <View style={{ flex: 1 }}>
+      <StatusBar style="light" translucent={false} backgroundColor="#0f0818" />
+      <View style={{ flex: 1, backgroundColor: "#0f0818" }}>
         <GradientBackground />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: "transparent" },
+            contentStyle: { backgroundColor: "#0f0818" },
             animation: "fade",
           }}
         >

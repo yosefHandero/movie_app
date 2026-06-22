@@ -1,3 +1,4 @@
+import { glassNavStyle } from "@/constants/glass";
 import { icons } from "@/constants/icons";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "expo-router";
@@ -10,7 +11,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const AnimatedView = Animated.createAnimatedComponent(View);
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 function NavIcon({
@@ -35,11 +35,14 @@ function NavIcon({
     opacity.value = withSpring(isActive ? 1 : 0.6, {
       duration: 200,
     });
-  }, [isActive]);
+  }, [isActive, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
+    ...(isActive
+      ? { backgroundColor: "rgba(167, 139, 250, 0.2)" }
+      : undefined),
   }));
 
   if (isActive) {
@@ -47,9 +50,9 @@ function NavIcon({
       <AnimatedTouchable
         onPress={onPress}
         style={animatedStyle}
-        className="flex-row items-center justify-center px-4 py-2 rounded-full bg-accent-primary"
+        className="flex-row items-center justify-center px-3 py-2 rounded-full"
       >
-        <Image source={icon} className="w-5 h-5" tintColor="#FFFFFF" />
+        <Image source={icon} className="w-5 h-5" tintColor="#A78BFA" />
         <Text className="text-white text-sm font-semibold ml-2">{title}</Text>
       </AnimatedTouchable>
     );
@@ -61,8 +64,8 @@ function NavIcon({
       className="items-center justify-center"
       style={animatedStyle}
     >
-      <Image source={icon} className="w-5 h-5" tintColor="#E4E4E7" />
-      <Text className="text-xs font-medium mt-1" style={{ color: "#E4E4E7" }}>
+      <Image source={icon} className="w-5 h-5" tintColor="#C4B5FD" />
+      <Text className="text-xs font-medium mt-1" style={{ color: "#C4B5FD" }}>
         {title}
       </Text>
     </AnimatedTouchable>
@@ -74,25 +77,9 @@ export const BottomNavBar: React.FC = () => {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
 
-  const blurStyle = {
-    backgroundColor:
-      Platform.OS === "web"
-        ? "rgba(165, 165, 169, 0.7)"
-        : "rgba(165, 165, 169, 0.85)",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-    ...(Platform.OS === "web" && {
-      backdropFilter: "blur(20px) saturate(180%)",
-      WebkitBackdropFilter: "blur(20px) saturate(180%)",
-    }),
-  };
-
   const tabs = [
     { name: "Home", icon: icons.home, path: "/" as const },
     { name: "Search", icon: icons.search, path: "/(tabs)/search" as const },
-    { name: "Saved", icon: icons.save, path: "/(tabs)/saved" as const },
-    { name: "Profile", icon: icons.person, path: "/(tabs)/profile" as const },
   ];
 
   const isActive = (path: string) => {
@@ -104,82 +91,70 @@ export const BottomNavBar: React.FC = () => {
     return pathname === path;
   };
 
+  const navContent = (
+    <>
+      {tabs.map((tab) => (
+        <NavIcon
+          key={tab.name}
+          icon={tab.icon}
+          title={tab.name}
+          isActive={isActive(tab.path)}
+          onPress={() => router.push(tab.path)}
+        />
+      ))}
+    </>
+  );
+
+  const containerStyle = {
+    position: "absolute" as const,
+    bottom: Platform.OS === "web" ? 20 : Math.max(insets.bottom, 24),
+    left: 16,
+    right: 16,
+    height: 66,
+    zIndex: 1000,
+    borderRadius: 18,
+    overflow: "hidden" as const,
+    ...glassNavStyle,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  };
+
   if (Platform.OS === "web") {
     return (
       <View
         style={[
-          blurStyle,
+          containerStyle,
           {
-            position: "absolute",
-            bottom: 20,
-            left: 20,
-            right: 20,
-            height: 76,
-            zIndex: 1000,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-around",
             paddingHorizontal: 12,
-            shadowColor: "#8B5CF6",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.3,
-            shadowRadius: 20,
           },
         ]}
       >
-        {tabs.map((tab) => (
-          <NavIcon
-            key={tab.name}
-            icon={tab.icon}
-            title={tab.name}
-            isActive={isActive(tab.path)}
-            onPress={() => router.push(tab.path)}
-          />
-        ))}
+        {navContent}
       </View>
     );
   }
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        bottom: Math.max(insets.bottom, 24),
-        left: 20,
-        right: 20,
-        height: 76,
-        zIndex: 1000,
-      }}
-    >
+    <View style={containerStyle}>
       <BlurView
-        intensity={20}
+        intensity={50}
         tint="dark"
         style={{
-          backgroundColor: "rgba(165, 165, 169, 0.85)",
-          borderRadius: 24,
-          borderWidth: 1,
-          borderColor: "rgba(255, 255, 255, 0.3)",
+          flex: 1,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-around",
           paddingHorizontal: 12,
-          height: "100%",
-          shadowColor: "#8B5CF6",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.3,
-          shadowRadius: 20,
-          elevation: 12,
+          backgroundColor: "rgba(34, 20, 56, 0.75)",
         }}
       >
-        {tabs.map((tab) => (
-          <NavIcon
-            key={tab.name}
-            icon={tab.icon}
-            title={tab.name}
-            isActive={isActive(tab.path)}
-            onPress={() => router.push(tab.path)}
-          />
-        ))}
+        {navContent}
       </BlurView>
     </View>
   );

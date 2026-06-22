@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import React from "react";
 import {
   ActivityIndicator,
@@ -47,7 +46,6 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
-  const brightness = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -56,12 +54,10 @@ export const Button: React.FC<ButtonProps> = ({
 
   const handlePressIn = () => {
     scale.value = withSpring(0.96, { damping: 20, stiffness: 400 });
-    brightness.value = withTiming(0.9, { duration: 100 });
   };
 
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 20, stiffness: 400 });
-    brightness.value = withTiming(1, { duration: 150 });
   };
 
   React.useEffect(() => {
@@ -71,25 +67,11 @@ export const Button: React.FC<ButtonProps> = ({
   const baseClasses =
     "flex-row items-center justify-center rounded-xl transition-all";
 
-  // Navbar-style texture (blur effect) for outline variant - more transparent
-  const navbarTextureStyle = {
-    backgroundColor:
-      Platform.OS === "web"
-        ? "rgba(165, 165, 169, 0.4)"
-        : "rgba(165, 165, 169, 0.5)",
-    borderWidth: 2,
-    borderColor: "rgba(139, 92, 246, 1)", // accent-primary
-    ...(Platform.OS === "web" && {
-      backdropFilter: "blur(20px) saturate(180%)",
-      WebkitBackdropFilter: "blur(20px) saturate(180%)",
-    }),
-  };
-
   const variantClasses = {
-    primary: "bg-accent-primary shadow-lg shadow-accent-primary/30",
+    primary: "bg-accent-primary",
     secondary: "bg-bg-tertiary border border-border-light",
     ghost: "bg-transparent",
-    outline: "", // Will use BlurView instead
+    outline: "bg-bg-secondary border border-border-primary",
   };
 
   const sizeClasses = {
@@ -105,10 +87,10 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const textVariantClasses = {
-    primary: "text-white font-bold",
+    primary: "text-black font-bold",
     secondary: "text-text-primary font-semibold",
     ghost: "text-accent-primary font-semibold",
-    outline: "text-accent-primary font-bold",
+    outline: "text-accent-primary font-semibold",
   };
 
   // Web hover effect
@@ -128,9 +110,9 @@ export const Button: React.FC<ButtonProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled || loading}
       activeOpacity={0.9}
-      className={`${baseClasses} ${
-        variant === "outline" ? "" : variantClasses[variant]
-      } ${sizeClasses[size]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${
+        sizeClasses[size]
+      } ${fullWidth ? "w-full" : ""} ${className}`}
       style={[
         animatedStyle,
         variant === "outline" ? {} : undefined,
@@ -160,11 +142,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={
-            variant === "primary" || variant === "outline"
-              ? "#FFFFFF"
-              : "#8B5CF6"
-          }
+          color={variant === "primary" ? "#0B0B0F" : "#A78BFA"}
         />
       ) : (
         <>
@@ -179,29 +157,6 @@ export const Button: React.FC<ButtonProps> = ({
       )}
     </AnimatedTouchable>
   );
-
-  // Use BlurView for outline variant to match navbar texture
-  if (variant === "outline") {
-    if (Platform.OS === "web") {
-      return (
-        <View
-          style={[navbarTextureStyle, { borderRadius: 12, overflow: "hidden" }]}
-        >
-          {buttonContent}
-        </View>
-      );
-    }
-
-    return (
-      <BlurView
-        intensity={20}
-        tint="dark"
-        style={[navbarTextureStyle, { borderRadius: 12, overflow: "hidden" }]}
-      >
-        {buttonContent}
-      </BlurView>
-    );
-  }
 
   return buttonContent;
 };

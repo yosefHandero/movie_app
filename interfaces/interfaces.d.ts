@@ -75,20 +75,6 @@ export interface TrendingCardProps {
   movie: TrendingMovie;
   index: number;
 }
-export type SavedMovie = {
-  $id: string;
-  movie_id: number;
-  title: string;
-  poster_url: string;
-  user_id: string;
-
-};
-export type UserProfile = {
-  $id: string;
-  movie_id: number;
-  title: string;
-  poster_url: string;
-};
 
 export interface CastMember {
   id: number;
@@ -127,6 +113,19 @@ export interface MovieCollection {
   poster_path: string | null;
   backdrop_path: string | null;
   parts: Movie[];
+}
+
+export interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string | null;
+}
+
+export interface WatchProvidersResult {
+  flatrate: WatchProvider[];
+  rent: WatchProvider[];
+  buy: WatchProvider[];
+  link?: string | null;
 }
 
 // Re-export for convenience

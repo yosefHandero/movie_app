@@ -14,18 +14,17 @@ module.exports = {
         "2xl": "1536px",
       },
       colors: {
-        // Background colors (lighter for better visibility)
         bg: {
-          primary: "#A0A0A5", // Lighter grey
-          secondary: "#A5A5A9", // Lighter grey
-          tertiary: "#AAAAAE", // Lighter grey
-          elevated: "#AFAFB3", // Lighter grey
+          primary: "#0f0818",
+          secondary: "#1a0f2e",
+          tertiary: "#221438",
+          elevated: "#2a1a42",
         },
         // Accent colors
         accent: {
-          primary: "#8B5CF6",
-          secondary: "#6366F1",
-          tertiary: "#A855F7",
+          primary: "#A78BFA",
+          secondary: "#8B5CF6",
+          tertiary: "#C4B5FD",
         },
         // Text colors
         text: {
@@ -36,27 +35,15 @@ module.exports = {
         },
         // Border colors
         border: {
-          primary: "rgba(139, 92, 246, 0.2)",
-          light: "rgba(161, 161, 170, 0.2)",
-          secondary: "rgba(161, 161, 170, 0.1)",
+          primary: "rgba(167, 139, 250, 0.24)",
+          light: "rgba(255, 255, 255, 0.08)",
+          secondary: "rgba(255, 255, 255, 0.04)",
         },
         // Status colors
         success: "#10B981",
         warning: "#F59E0B",
         error: "#EF4444",
         info: "#3B82F6",
-        // Legacy support (keeping for backward compatibility)
-        primary: "#3C1B58",
-        secondary1: "#4A2A6A",
-        light: {
-          100: "#E4E4E7",
-          200: "#A1A1AA",
-          300: "#71717A",
-        },
-        dark: {
-          100: "#4A2A6A",
-          200: "#3C1B58",
-        },
       },
       spacing: {
         xs: "4px",
@@ -89,8 +76,8 @@ module.exports = {
         "6xl": "64px",
       },
       boxShadow: {
-        glow: "0 0 20px rgba(139, 92, 246, 0.3)",
-        "glow-lg": "0 0 40px rgba(139, 92, 246, 0.4)",
+        glow: "0 0 16px rgba(167, 139, 250, 0.22)",
+        "glow-lg": "0 0 28px rgba(167, 139, 250, 0.26)",
       },
     },
   },

@@ -1,11 +1,5 @@
-import React, { useEffect } from "react";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
+import React from "react";
+import { View } from "react-native";
 
 export interface SkeletonProps {
   width?: number | string;
@@ -22,34 +16,17 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   className = "",
   variant = "default",
 }) => {
-  const opacity = useSharedValue(0.4);
-
-  useEffect(() => {
-    opacity.value = withRepeat(
-      withTiming(0.7, {
-        duration: 1200,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
   return (
-    <Animated.View
+    <View
       className={`bg-bg-tertiary ${className}`}
-      style={[
+      style={
         {
-          width: typeof width === "string" ? width : width,
-          height: typeof height === "string" ? height : height,
+          width,
+          height,
           borderRadius,
-        } as any,
-        animatedStyle,
-      ]}
+          opacity: variant === "pulse" ? 0.45 : 0.32,
+        } as any
+      }
     />
   );
 };

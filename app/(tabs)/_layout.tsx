@@ -36,24 +36,29 @@ function TabIcon({
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
+    ...(focused
+      ? { backgroundColor: "rgba(167, 139, 250, 0.16)" }
+      : undefined),
   }));
 
   if (focused) {
     return (
       <AnimatedView
-        className="flex-row items-center justify-center px-4 py-2 rounded-full bg-accent-primary"
+        className="flex-row items-center justify-center px-3 py-2 rounded-full"
         style={animatedStyle}
       >
-        <Image source={icon} className="w-5 h-5" tintColor="#FFFFFF" />
-        <Text className="text-white text-sm font-semibold ml-2">{title}</Text>
+        <Image source={icon} className="w-5 h-5" tintColor="#A78BFA" />
+        <Text className="text-sm font-semibold ml-2" style={{ color: "#FFFFFF" }}>
+          {title}
+        </Text>
       </AnimatedView>
     );
   }
 
   return (
     <AnimatedView className="items-center justify-center" style={animatedStyle}>
-      <Image source={icon} className="w-5 h-5" tintColor="#E4E4E7" />
-      <Text className="text-xs font-medium mt-1" style={{ color: "#E4E4E7" }}>
+      <Image source={icon} className="w-5 h-5" tintColor="#A1A1AA" />
+      <Text className="text-xs font-medium mt-1" style={{ color: "#A1A1AA" }}>
         {title}
       </Text>
     </AnimatedView>
@@ -74,12 +79,9 @@ export default function TabsLayout() {
           alignItems: "center",
         },
         tabBarStyle: {
-          backgroundColor:
-            Platform.OS === "web"
-              ? "rgba(165, 165, 169, 0.7)"
-              : "rgba(165, 165, 169, 0.85)", // Semi-transparent for glass effect
-          borderRadius: 24,
-          height: 76, // Increased height to accommodate text
+          backgroundColor: "rgba(34, 20, 56, 0.88)",
+          borderRadius: 18,
+          height: 66,
           position: "absolute",
           bottom: Platform.OS === "web" ? 20 : Math.max(insets.bottom, 24),
           left: 20,
@@ -87,19 +89,20 @@ export default function TabsLayout() {
           zIndex: 1000,
           overflow: "hidden",
           borderWidth: 1,
-          borderColor: "rgba(255, 255, 255, 0.3)", // Light border for glass effect
+          borderColor: "rgba(167, 139, 250, 0.22)",
           shadowColor: "#8B5CF6",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.3,
-          shadowRadius: 20,
-          elevation: 12,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.2,
+          shadowRadius: 16,
+          elevation: 8,
           pointerEvents: "box-none",
-          // Web-specific backdrop blur
-          ...(Platform.OS === "web" && {
-            // @ts-ignore - web-only CSS
-            backdropFilter: "blur(20px) saturate(180%)",
-            WebkitBackdropFilter: "blur(20px) saturate(180%)",
-          }),
+          ...(Platform.OS === "web"
+            ? {
+                // @ts-ignore web-only
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+              }
+            : {}),
         },
       }}
     >
@@ -108,6 +111,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           headerShown: false,
+          tabBarStyle: { display: "none" },
           tabBarIcon: ({ focused }) => (
             <TabIcon focused={focused} icon={icons.home} title="Home" />
           ),
@@ -117,40 +121,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: "Search",
+          href: null,
           headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.search} title="Search" />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: "Saved",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.save} title="Saved" />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.person} title="Profile" />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="categories"
-        options={{
-          href: null, // Hide from tab bar - only accessible on smaller screens
         }}
       />
     </Tabs>

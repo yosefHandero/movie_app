@@ -45,20 +45,20 @@ const MovieRow: React.FC<MovieRowProps> = ({
 
   if (loading) {
     return (
-      <View className="mb-12">
-        <View className="flex-row items-center justify-between mb-6 px-6">
-          <Skeleton width={200} height={32} borderRadius={8} />
-          {showSeeAll && <Skeleton width={80} height={20} borderRadius={8} />}
+      <View className="mb-8">
+        <View className="flex-row items-center justify-between mb-4 px-6">
+          <Skeleton width={150} height={20} borderRadius={8} />
+          {showSeeAll && <Skeleton width={60} height={16} borderRadius={8} />}
         </View>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={[1, 2, 3, 4, 5]}
+          data={[1, 2, 3]}
           renderItem={() => (
             <View className="ml-6">
               <Skeleton
-                width={variant === "trending" ? 280 : 160}
-                height={variant === "trending" ? 400 : 240}
+                width={variant === "trending" ? 180 : 120}
+                height={variant === "trending" ? 260 : 180}
                 borderRadius={12}
               />
             </View>
@@ -98,22 +98,10 @@ const MovieRow: React.FC<MovieRowProps> = ({
       scale.value = withSpring(1, { damping: 15, stiffness: 300 });
     };
 
-    // Web hover effect for carousel items
-    const webHoverStyle =
-      Platform.OS === "web"
-        ? {
-            // @ts-ignore - web-only styles
-            transition: "transform 0.2s ease",
-            cursor: "pointer" as any,
-          }
-        : undefined;
-
     if (variant === "trending") {
       return (
         <View
           className={index === 0 ? "ml-6" : "ml-4"}
-          // @ts-ignore - web-only style props
-          style={webHoverStyle as any}
         >
           <TrendingCard
             movie={{
@@ -135,8 +123,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
       <AnimatedTouchable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        // @ts-ignore - web-only styles in webHoverStyle
-        style={[animatedStyle, webHoverStyle]}
+        style={animatedStyle}
         className={index === 0 ? "ml-6" : "ml-4"}
         activeOpacity={0.9}
         // @ts-ignore - web-only props
@@ -160,16 +147,17 @@ const MovieRow: React.FC<MovieRowProps> = ({
           {...item}
           size={isDesktop ? "medium" : "small"}
           showRating={true}
+          showInsights={true}
         />
       </AnimatedTouchable>
     );
   };
 
   return (
-    <View className="mb-14" style={{ width: "100%", maxWidth: "100%" }}>
-      <View className="flex-row items-center justify-between mb-6 px-6">
+    <View className="mb-10" style={{ width: "100%", maxWidth: "100%" }}>
+      <View className="flex-row items-center justify-between mb-4 px-6">
         <View className="flex-1">
-          <Text className="text-text-primary text-3xl font-bold mb-1">
+          <Text className="text-text-primary text-2xl font-bold mb-1">
             {title}
           </Text>
           <Text className="text-text-tertiary text-sm">
@@ -181,10 +169,10 @@ const MovieRow: React.FC<MovieRowProps> = ({
           <TouchableOpacity
             onPress={onSeeAll}
             activeOpacity={0.7}
-            className="px-4 py-2 rounded-full bg-accent-primary/10 ml-4"
+            className="px-3 py-2 rounded-full bg-bg-secondary border border-border-primary ml-4"
           >
             <Text className="text-accent-primary text-base font-semibold">
-              See All →
+              See all
             </Text>
           </TouchableOpacity>
         )}

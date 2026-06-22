@@ -1,4 +1,4 @@
-import { Movie, MovieDetails } from "@/interfaces/interfaces";
+import { Movie, MovieDetails, WatchProvidersResult } from "@/interfaces/interfaces";
 
 // Validate API key on module load
 const getApiKey = () => {
@@ -10,7 +10,7 @@ const getApiKey = () => {
     return apiKey;
 };
 
-export const TMDB_CONFIG = {
+const TMDB_CONFIG = {
     BASE_URL: "https://api.themoviedb.org/3",
     get API_KEY() {
         return getApiKey();
@@ -271,7 +271,7 @@ export const fetchPopularMovies = async (page: number = 1): Promise<Movie[]> => 
 };
 
 // Discover movies with filters
-export const discoverMovies = async (filters: {
+const discoverMovies = async (filters: {
     genreIds?: number[];
     year?: number;
     sortBy?: string;
@@ -336,5 +336,102 @@ export const fetchCollection = async (collectionId: number) => {
     } catch (error) {
         console.error("Error fetching collection:", error);
         return null;
+    }
+};
+
+// Fetch watch providers for a region (official TMDB data only)
+export const fetchWatchProviders = async (
+    movieId: string,
+    region: string = "US"
+): Promise<WatchProvidersResult | null> => {
+    try {
+        if (!movieId || isNaN(Number(movieId))) {
+            return null;
+        }
+
+        const url = buildUrl(`/movie/${movieId}/watch/providers`);
+        const response = await fetchWithRetry(url);
+        const data = await response.json();
+        const regionData = data?.results?.[region];
+
+        if (!regionData) {
+            return { flatrate: [], rent: [], buy: [], link: null };
+        }
+
+        const mapProviders = (list: any[] = []) =>
+            list.map((p) => ({
+                provider_id: p.provider_id,
+                provider_name: p.provider_name,
+                logo_path: p.logo_path ?? null,
+            }));
+
+        return {
+            flatrate: mapProviders(regionData.flatrate),
+            rent: mapProviders(regionData.rent),
+            buy: mapProviders(regionData.buy),
+            link: regionData.link ?? null,
+        };
+    } catch (error) {
+        console.error("Error fetching watch providers:", error);
+        return null;
+    }
+};
+
+// Fetch US certification from release dates
+export const fetchMovieCertification = async (
+    movieId: string,
+    region: string = "US"
+): Promise<string | null> => {
+    try {
+        if (!movieId || isNaN(Number(movieId))) {
+            return null;
+        }
+
+        const url = buildUrl(`/movie/${movieId}/release_dates`);
+        const response = await fetchWithRetry(url);
+        const data = await response.json();
+        const regionEntry = (data?.results || []).find(
+            (r: { iso_3166_1: string }) => r.iso_3166_1 === region
+        );
+
+        if (!regionEntry?.release_dates?.length) {
+            return null;
+        }
+
+        const theatrical = regionEntry.release_dates.find(
+            (d: { type: number; certification?: string }) =>
+                d.type === 3 && d.certification
+        );
+        const withCert = regionEntry.release_dates.find(
+            (d: { certification?: string }) => d.certification
+        );
+
+        return theatrical?.certification || withCert?.certification || null;
+    } catch (error) {
+        console.error("Error fetching movie certification:", error);
+        return null;
+    }
+};
+
+// Fetch movie keywords (for mature-content and vibe signals)
+export const fetchMovieKeywords = async (
+    movieId: string
+): Promise<string[]> => {
+    try {
+        if (!movieId || isNaN(Number(movieId))) {
+            return [];
+        }
+
+        const url = buildUrl(`/movie/${movieId}/keywords`);
+        const response = await fetchWithRetry(url);
+        const data = await response.json();
+        const keywords = data?.keywords || [];
+
+        return keywords
+            .map((k: { name?: string }) => k.name?.toLowerCase().trim())
+            .filter(Boolean) as string[];
+    } catch (error) {
+        console.error("Error fetching movie keywords:", error);
+        return [];
     }
 };

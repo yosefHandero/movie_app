@@ -24,7 +24,7 @@ export const Badge: React.FC<BadgeProps> = ({
 
   const textVariantClasses = {
     default: 'text-text-secondary',
-    accent: 'text-white',
+    accent: 'text-black',
     success: 'text-white',
     warning: 'text-white',
     error: 'text-white',
