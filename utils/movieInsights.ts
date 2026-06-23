@@ -435,8 +435,8 @@ export const getAwkwardMeter = (
 ): AwkwardMeterResult => {
   const mature = hasMatureSignal(movie, certification, keywords);
   const strongMature = hasStrongMatureSignal(movie, certification, keywords);
-  const hasDetailSignals =
-    certification != null || (keywords != null && keywords.length > 0);
+  const hasGenreData =
+    (movie.genres?.length ?? 0) > 0 || (movie.genre_ids?.length ?? 0) > 0;
 
   if (strongMature || movie.adult) {
     return {
@@ -507,26 +507,26 @@ export const getAwkwardMeter = (
     };
   }
 
-  if (!hasDetailSignals && !certification) {
+  if (hasGenre(movie, "Animation", "Family")) {
     return {
-      label: "Comfort unknown",
-      description: "Not enough data to judge watch comfort.",
-      tone: "unknown",
+      label: "Family Safe",
+      description: "Family-friendly genres — likely fine for all ages.",
+      tone: "safe",
     };
   }
 
-  if (!certification && !movie.genres?.length && !movie.genre_ids?.length) {
+  if (hasGenreData) {
     return {
-      label: "Comfort unknown",
-      description: "Not enough data to judge watch comfort.",
-      tone: "unknown",
+      label: "Parent Friendly",
+      description: "Likely fine for most casual group watches.",
+      tone: "moderate",
     };
   }
 
   return {
-    label: "Parent Friendly",
-    description: "Likely fine for most casual group watches.",
-    tone: "moderate",
+    label: "Comfort unknown",
+    description: "Not enough data to judge watch comfort.",
+    tone: "unknown",
   };
 };
 
